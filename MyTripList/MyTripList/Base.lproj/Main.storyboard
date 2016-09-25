@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="10117" systemVersion="15G31" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="MoZ-10-6VX">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <development version="7000" identifier="xcode"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController storyboardIdentifier="homeViewController" id="BYZ-38-t0r" customClass="ViewController" customModule="MyTripList" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
+                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="7vj-DY-Jip">
+                        <barButtonItem key="leftBarButtonItem" title="Menu" id="bJT-yJ-icL">
+                            <connections>
+                                <action selector="presentLeftMenuViewController:" destination="BYZ-38-t0r" id="J5b-FY-gXf"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem key="rightBarButtonItem" systemItem="add" id="VbW-5O-XEd">
+                            <connections>
+                                <segue destination="SF7-Es-yn0" kind="popoverPresentation" popoverAnchorBarButtonItem="VbW-5O-XEd" id="6hp-Es-llC">
+                                    <popoverArrowDirection key="popoverArrowDirection" up="YES" down="YES" left="YES" right="YES"/>
+                                </segue>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1117" y="368"/>
+        </scene>
+        <!--Create Trip View Controller-->
+        <scene sceneID="DoC-hx-5lB">
+            <objects>
+                <viewController id="2R0-NK-wBR" customClass="RCreateTripViewController" customModule="MyTripList" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="v4D-lb-LiB"/>
+                        <viewControllerLayoutGuide type="bottom" id="0fU-CP-Xmf"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="Gv1-0S-j7e">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                    </view>
+                    <navigationItem key="navigationItem" id="eLd-DP-k3x">
+                        <barButtonItem key="leftBarButtonItem" systemItem="cancel" id="vMM-tg-Q0M">
+                            <connections>
+                                <action selector="dismissController" destination="2R0-NK-wBR" id="jlz-0W-G9Y"/>
+                            </connections>
+                        </barButtonItem>
+                        <barButtonItem key="rightBarButtonItem" systemItem="done" id="lGt-Ti-ZHx"/>
+                    </navigationItem>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="33S-zk-OiG" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="2655" y="368"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="8ao-xy-aWq">
+            <objects>
+                <navigationController storyboardIdentifier="contentViewController" automaticallyAdjustsScrollViewInsets="NO" id="6LR-5X-qME" customClass="NavigationController" customModule="MyTripList" customModuleProvider="target" sceneMemberID="viewController">
+                    <toolbarItems/>
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="fd9-xi-ayd">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <nil name="viewControllers"/>
+                    <connections>
+                        <segue destination="BYZ-38-t0r" kind="relationship" relationship="rootViewController" id="q5F-e4-3LK"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="mU9-A4-SQS" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="367" y="368"/>
+        </scene>
+        <!--Root View Controller-->
+        <scene sceneID="YCJ-7i-dNo">
+            <objects>
+                <viewController storyboardIdentifier="rootController" useStoryboardIdentifierAsRestorationIdentifier="YES" id="MoZ-10-6VX" customClass="DEMORootViewController" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="Bgz-5N-KaZ"/>
+                        <viewControllerLayoutGuide type="bottom" id="2z4-lV-fov"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="5qK-C3-Hcf">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                        <color key="backgroundColor" red="1" green="0.99997437000274658" blue="0.99999129772186279" alpha="1" colorSpace="calibratedRGB"/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="cqB-mv-Tzw" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="367" y="-306"/>
+        </scene>
+        <!--Left Menu View Controller-->
+        <scene sceneID="qql-Af-9C6">
+            <objects>
+                <viewController restorationIdentifier="leftMenuViewController" storyboardIdentifier="leftMenuViewController" id="ISD-8W-BMR" customClass="DEMOLeftMenuViewController" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="fNT-Ud-tge"/>
+                        <viewControllerLayoutGuide type="bottom" id="473-af-hf2"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="bzU-qo-aYn">
+                        <rect key="frame" x="0.0" y="0.0" width="600" height="600"/>
+                        <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.0" colorSpace="calibratedRGB"/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="kxE-0E-JXK" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="964" y="1145"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="q4C-31-92Q">
+            <objects>
+                <navigationController automaticallyAdjustsScrollViewInsets="NO" id="SF7-Es-yn0" customClass="NavigationController" customModule="MyTripList" customModuleProvider="target" sceneMemberID="viewController">
+                    <toolbarItems/>
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="cin-nX-s7s">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <nil name="viewControllers"/>
+                    <connections>
+                        <segue destination="2R0-NK-wBR" kind="relationship" relationship="rootViewController" id="jPQ-7Y-Z65"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="y0c-zC-6UE" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1843" y="368"/>
+        </scene>
+    </scenes>
+</document>

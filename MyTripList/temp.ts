@@ -6,6 +6,19 @@ import { LagoonTables } from '../../constants';
 import { useLagoon } from '../../hooks/useLagoon';
 import { FeatureFlagConfigItem } from '../../LagoonItemInterfaces';
 
+function createDefaultFeatureFlags<T>(): T {
+    const defaultFlags = {} as Record<keyof T, boolean>;
+
+    // Iterating over all keys of the type and assigning false as the default value
+    (Object.keys(defaultFlags) as Array<keyof T>).forEach((key) => {
+        defaultFlags[key] = false;
+    });
+
+    return defaultFlags as T;
+}
+
+const defaultFeatureFlags = createDefaultFeatureFlags<DefaultFeatureFlags>();
+
 const defaultFeatureFlags = {
   isVisionChipEnabled: false,
   isAnalyticsTrackBackEnabled: true,

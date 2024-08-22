@@ -204,6 +204,28 @@ export const FeatureFlagProvider = ({ children, lob, population }: { children: R
     await saveOverrides(newOverrides);
   };
 
+    const printDifferences = (currentFlags: typeof flagRef.current, updatedFlags: typeof updatedFlags) => {
+    const differences: { [key: string]: { current: any, updated: any } } = {};
+
+    Object.keys(currentFlags).forEach((key) => {
+        if (currentFlags[key] !== updatedFlags[key]) {
+            differences[key] = {
+                current: currentFlags[key],
+                updated: updatedFlags[key]
+            };
+        }
+    });
+
+    if (Object.keys(differences).length > 0) {
+        console.log("Differences between flags:");
+        Object.keys(differences).forEach(key => {
+            console.log(`Key: ${key}, Current Value: ${differences[key].current}, Updated Value: ${differences[key].updated}`);
+        });
+    } else {
+        console.log("No differences found.");
+    }
+};
+    
   const updateFeatureFlagsFromJson = (flagsJson: FeatureFlagConfigItem[], population?: string | null | undefined): void => {
     if (!flagsJson || !Array.isArray(flagsJson)) return;
 

@@ -1,0 +1,410 @@
+{
+  "poc-feature-flags": [
+    {
+      "id": "011270c4-26c9-4b1f-a9fb-19d4dc550333",
+      "key": "ENABLE_VISION_CHIP",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "d4bb6381-b8eb-46b6-bbe7-20fdb9cab725",
+      "key": "ENABLE_ANALYTICS_TRACK_BACK",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "31291c4f-4a17-47df-8d21-01bdfe7a6eb2",
+      "key": "ENABLE_ANALYTICS_V1",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "7dd47233-d641-4d34-be54-f3c06ccffb94",
+      "key": "ENABLE_TRACK_SCREEN_LOAD",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "637d200b-55dd-4ae9-9332-45a52d1f3f4a",
+      "key": "ENABLE_CONSOLE_LOGS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "41bcd6d5-13b6-4395-a6b2-cd8ada4b2aa9",
+      "key": "ENABLE_COST_EXPERIENCE_NATIVE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "f1ff817e-2340-4f49-8b4e-11f334087b4f",
+      "key": "ENABLE_COUNTY_SEARCH_ALERT",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "de3b74a6-afb9-450d-a122-ccde54d040a6",
+      "key": "ENABLE_FIRST_VISIT_MODAL",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "130b0b00-be6b-4627-aa62-d8b68896701b",
+      "key": "ENABLE_LLM",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "acdf9f3c-8a9b-4c7d-bb18-7e22941d1469",
+      "key": "ENABLE_MEDICAL_SPECIALISTS_ACTIVE_REFERRALS",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "477bf842-d9ec-42ae-b49e-444f57daffad",
+      "key": "ENABLE_MOCK_COMPARE_CARD",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "899b6124-78ea-4863-bf8c-f4734c0e5c1e",
+      "key": "ENABLE_NEW_LOCATION_SELECTION_FLOW",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "417a3a4c-c189-4291-a670-d7d6d8ff8d0a",
+      "key": "ENABLE_PREFERRED_FACILITY_IDENTIFICATION",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "cb3a54e5-e4d6-4ae5-8031-490f44faed03",
+      "key": "ENABLE_SHOW_EAP_TILE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "b1a10c5a-7c49-4d9f-b366-c16b8042be17",
+      "key": "ENABLE_UPCOMING_AVAILABILITY",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "2c896b53-c471-4564-812f-94c0b5aa417b",
+      "key": "ENABLE_ACO_FILTER",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "c53f7428-4f6b-4421-b758-d330a16cc24b",
+      "key": "ENABLE_FILTER_BITES",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "c9d32c97-6c9f-42b4-95cf-80e31438f6b5",
+      "key": "ENABLE_SHOW_SELECTED_LOCATION_ACO_PROVIDER",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "1fa1c4b1-3946-4881-b1e0-86b400f17b8e",
+      "key": "ENABLE_SHOW_ETHNICITY",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "8c8d7d63-13d4-4c53-87bb-16fe1153ae6b",
+      "key": "ENABLE_EXTENDED_TYPEAHEAD_ANALYTICS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "632b4b8f-fd1e-4cc5-a063-0e5269dcdfd9",
+      "key": "ENABLE_PLANNING_FOR_CARE",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "54d75f2b-0100-4b7b-b9f5-132abeff5972",
+      "key": "ENABLE_SUPPRESS_BEHAVIORAL_HEALTH_CONTENT",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "d98b1706-60d3-4c11-a279-24025b7f0123",
+      "key": "ENABLE_PREFERRED_FACILITY_SEARCH",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "b6740d85-f004-4bff-a527-8702a1ba582a",
+      "key": "ENABLE_BEHAVIORAL_VIRTUAL_PSUEDOCODES",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "2234eafb-8eae-4c1b-8b8f-989dcb67939a",
+      "key": "ENABLE_PREFERRED_PROVIDER_BADGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "b70a6692-650e-42e0-a88c-5f1fe3d9b155",
+      "key": "ENABLE_ANALYTICS_PCP_SELECTION_FLOW",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "b0c6a2e0-6379-4449-a4f4-dcb6f1619ca5",
+      "key": "ENABLE_ANALYTICS_ERROR_NULL_SEARCH_PAGE",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "91ad1342-7fa8-439b-805a-f41c17a9b7a6",
+      "key": "ENABLE_ANALYTICS_ERROR_NULL_STATE_PAGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "ed83d0b6-8d0a-4b9f-b27b-4a2eac709fc9",
+      "key": "ENABLE_ANALYTICS_MIXED_RESULTS_PAGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "6ab3f25e-b80c-470f-89b7-785994aa474a",
+      "key": "ENABLE_ANALYTICS_INTRO_VIEW_OF_PS_VIDEO",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "b01571d7-bae5-4855-92c0-e728a8f85c55",
+      "key": "ENABLE_NEW_PREFERRED_FACILITY_L2_PAGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "226ac487-fc16-4f92-858e-f3289f7850ae",
+      "key": "ENABLE_AUTOCOMPLETE_CAPTURE_RESULTS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "53f2ac8a-2d1e-4d7b-8b25-60cddc8cccf3",
+      "key": "ENABLE_ANALYTICS_MAP_VIEW",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "ec6278a3-b370-43c7-b0cc-e89610f4fa4d",
+      "key": "ENABLE_ANALYTICS_FIND_CARE_LANDING_PAGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "28743d45-b7f0-45b2-9500-09c12447a246",
+      "key": "ENABLE_DISPLAY_AVAILABILITY_PROVIDER_DETAILS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "197733e6-b5b4-4e0f-b7ca-7b96e36e8191",
+      "key": "ENABLE_TYPEAHEAD_GENERAL_SEARCH",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "40f2db0f-953f-4fd1-9200-85ba31fbc79b",
+      "key": "ENABLE_PSX_PROVIDER_RECOMMENDATIONS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "68a0b8f0-8a97-4dbf-8660-3a1d89930870",
+      "key": "ENABLE_OXFORD_PLN_FLAG",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "ba3f5197-fcae-45df-92a2-02c2e39aaadb",
+      "key": "ENABLE_AUTOCOMPLETE_ROLL_UP_CODE_NAME_SEARCH",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "a5becc68-5f8d-470b-a0d2-7462122ba79f",
+      "key": "ENABLE_PCP_TERMINATION_DATE",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "7605c77b-614b-4744-a171-7a93d9de6f83",
+      "key": "ENABLE_SHOW_ACCEPTS_MEDICAID",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "99cfca4a-453e-413e-bc9f-43143a8be02c",
+      "key": "ENABLE_ANALYTICS_LIST_VIEW_PAGE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "2f44447d-022f-47c2-bdfb-d2ac16d6fc99",
+      "key": "ENABLE_ADDITIONAL_RESOURCES",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "fd1e59f4-6478-4a57-bc02-b19e20a98b7f",
+      "key": "ENABLE_PROGRAMS_DISPLAY",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "28032572-79cc-401d-89d5-59cc91151fb9",
+      "key": "ENABLE_SHOW_IS_PRE_EFFECTIVE_INDICATOR",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "dfe4db66-c110-4a6d-96bc-131f8f2bcf4d",
+      "key": "ENABLE_FIND_ELIGIBLE_PCP_BANNER",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "af20aebb-046e-4ae5-9170-dc1fd47f673f",
+      "key": "ENABLE_FUTURE_TERMINATION_DEMO",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "cc60e826-d7b2-44c5-baf6-0d8f327ad992",
+      "key": "ENABLE_POLICY_FILTER_TOGGLE",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "0dcbbf65-36a2-49e5-9ed7-4eae1a6216c6",
+      "key": "ENABLE_POLICY_FILTER_TOGGLE_MNR",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "9e25d3b4-6e47-4de4-839b-1d365f8c6a4a",
+      "key": "ENABLE_BH_FACILITIES_PROGRAM_IDS_SECTION",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "94c5086f-9c32-4902-897d-1e23dc52915f",
+      "key": "ENABLE_BH_FACILITIES_PROGRAM_SEARCH_FLAG",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "5d9d1bbd-5881-456a-9dec-1e6459828d65",
+      "key": "ENABLE_IDENTIFY_NON_TIERED_PROVIDER_LOCATIONS_USP",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "48b55eb9-e76a-4f81-b954-6ab3777322c1",
+      "key": "ENABLE_IDENTIFY_NON_TIERED_PROVIDER_LOCATIONS_UNET",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "7b073e6b-d484-4279-b3e2-b5aff3d8a226",
+      "key": "ENABLE_RECENT_DENTAL_VISIT_UNET",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "45f1dfcc-b841-4f7b-b1cf-a31a62c1b1c6",
+      "key": "ENABLE_RECENT_VISION_VISIT_UNET",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "fd73fbf3-1703-4442-ad5a-86f41be40a9f",
+      "key": "ENABLE_RECENT_DENTAL_VISIT_USP",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "2de71a07-bda3-4e2b-b67b-034345f1edcb",
+      "key": "ENABLE_RECENT_VISION_VISIT_USP",
+      "active": false,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    },
+    {
+      "id": "3b6944f6-bb4e-4312-bd87-3aa30d18b78d",
+      "key": "ENABLE_PRE_EFFECTIVE_PLANS",
+      "active": true,
+      "Lagoon.updatedBy": "rnisal",
+      "Lagoon.updatedAt": "2024-08-21T00:16:33.301Z"
+    }
+  ]
+}

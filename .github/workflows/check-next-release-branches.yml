@@ -1,0 +1,52 @@
+name: Check Cherry-Pick Status
+
+on:
+  pull_request:
+    branches:
+      - release/*  # Trigger on all release branches
+
+  workflow_run:
+    workflows: ["Check Cherry-Pick Status"]  # Re-run when this workflow completes on related branches
+    types: 
+      - completed
+
+jobs:
+  check-cherry-pick:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get Current Branch and PR Details
+        run: |
+          PR_BRANCH="${{ github.head_ref }}"
+          BASE_BRANCH="${{ github.base_ref }}"
+          echo "PR_BRANCH=${PR_BRANCH}" >> $GITHUB_ENV
+          echo "BASE_BRANCH=${BASE_BRANCH}" >> $GITHUB_ENV
+
+      - name: Get List of Release Branches
+        run: |
+          RELEASE_BRANCHES=$(git branch -r | grep "release/" | sed 's/origin\///')
+          echo "Release branches found: $RELEASE_BRANCHES"
+
+          # Identify the branches newer than the current branch
+          NEXT_BRANCHES=$(echo "$RELEASE_BRANCHES" | awk "/$BASE_BRANCH/{flag=1;next}flag" | tr '\n' ' ')
+          echo "NEXT_BRANCHES=${NEXT_BRANCHES}" >> $GITHUB_ENV
+
+      - name: Check for Missing Cherry-Picks
+        run: |
+          MISSING_BRANCHES=""
+          for branch in $NEXT_BRANCHES; do
+            # Check if the commit exists in the next release branch
+            if ! git branch -r --contains $GITHUB_SHA | grep -q "$branch"; then
+              MISSING_BRANCHES+="$branch "
+            fi
+          done
+
+          if [ -n "$MISSING_BRANCHES" ]; then
+            echo "::error::Cherry-pick required for: $MISSING_BRANCHES"
+            exit 1
+          else
+            echo "All relevant branches are up-to-date."
+          fi

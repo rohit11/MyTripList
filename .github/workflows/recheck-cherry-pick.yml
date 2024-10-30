@@ -15,19 +15,23 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-            const { data: pulls } = await octokit.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+            const { owner, repo } = context.repo;
+
+            // List all open PRs on the target branch
+            const pulls = await octokit.rest.pulls.list({
+              owner,
+              repo,
               state: 'open',
               base: context.payload.pull_request.base.ref,
             });
 
-            for (const pr of pulls) {
+            for (const pr of pulls.data) {
               console.log(`Re-running workflow for PR: ${pr.html_url}`);
+              
+              // Trigger a re-run for the relevant workflow
               await octokit.rest.actions.reRunWorkflow({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: pr.id,
+                owner,
+                repo,
+                run_id: pr.id,  // Workflow run ID to re-run
               });
             }

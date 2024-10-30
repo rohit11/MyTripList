@@ -10,9 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Check Cherry-Pick Status
+      - name: Re-Run Workflow on Related PRs
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
             const { data: pulls } = await octokit.rest.pulls.list({
@@ -23,6 +24,7 @@ jobs:
             });
 
             for (const pr of pulls) {
+              console.log(`Re-running workflow for PR: ${pr.html_url}`);
               await octokit.rest.actions.reRunWorkflow({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

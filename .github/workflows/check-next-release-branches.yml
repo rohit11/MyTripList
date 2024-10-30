@@ -25,7 +25,11 @@ jobs:
           RELEASE_BRANCHES=$(git branch -r | grep "release/" | sed 's/origin\///')
           echo "Release branches found: $RELEASE_BRANCHES"
 
-          NEXT_BRANCHES=$(echo "$RELEASE_BRANCHES" | awk "/$BASE_BRANCH/{flag=1;next}flag" | tr '\n' ' ')
+          # Ensure BASE_BRANCH is escaped correctly
+          ESCAPED_BASE_BRANCH=$(echo "$BASE_BRANCH" | sed 's/[\/&]/\\&/g')
+
+          # Use awk to get all branches after the base branch
+          NEXT_BRANCHES=$(echo "$RELEASE_BRANCHES" | awk "/$ESCAPED_BASE_BRANCH/{flag=1; next} flag" | tr '\n' ' ')
           echo "NEXT_BRANCHES=${NEXT_BRANCHES}" >> $GITHUB_ENV
 
       - name: Check for Missing Cherry-Picks

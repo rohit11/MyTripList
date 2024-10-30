@@ -10,28 +10,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Re-Run Workflow on Related PRs
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { owner, repo } = context.repo;
+      - name: List Open Pull Requests on the Target Branch
+        run: |
+          echo "Listing open PRs on branch: ${{ github.event.pull_request.base.ref }}"
 
-            // List all open PRs on the target branch
-            const pulls = await octokit.rest.pulls.list({
-              owner,
-              repo,
-              state: 'open',
-              base: context.payload.pull_request.base.ref,
-            });
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=${{ github.event.pull_request.base.ref }}" \
+            | jq '.[] | {html_url: .html_url, number: .number}'
 
-            for (const pr of pulls.data) {
-              console.log(`Re-running workflow for PR: ${pr.html_url}`);
-              
-              // Trigger a re-run for the relevant workflow
-              await octokit.rest.actions.reRunWorkflow({
-                owner,
-                repo,
-                run_id: pr.id,  // Workflow run ID to re-run
-              });
-            }
+      - name: Re-Run Workflows for Related Pull Requests
+        run: |
+          echo "Re-running workflows for PRs on branch: ${{ github.event.pull_request.base.ref }}"
+
+          PRS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&base=${{ github.event.pull_request.base.ref }}" \
+            | jq '.[].number')
+
+          for pr_number in $PRS; do
+            echo "Re-running workflow for PR #$pr_number"
+            
+            RUN_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs" \
+              | jq ".workflow_runs[] | select(.pull_requests[].number == $pr_number) | .id" | head -n 1)
+
+            if [ -n "$RUN_ID" ]; then
+              curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/rerun"
+              echo "Workflow re-run triggered for PR #$pr_number"
+            else
+              echo "No workflow run found for PR #$pr_number"
+            fi
+          done

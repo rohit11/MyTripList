@@ -22,15 +22,31 @@ jobs:
 
       - name: Get List of Release Branches
         run: |
+          # Ensure the latest remote branches are fetched
+          git fetch --all --prune
+
+          # List remote branches for debugging
+          echo "All remote branches:"
+          git branch -r
+
+          # Extract release branches from the remote list
           RELEASE_BRANCHES=$(git branch -r | grep "release/" | sed 's/origin\///')
+
+          # Debug output to see what branches were found
           echo "Release branches found: $RELEASE_BRANCHES"
 
           # Ensure BASE_BRANCH is escaped correctly
           ESCAPED_BASE_BRANCH=$(echo "$BASE_BRANCH" | sed 's/[\/&]/\\&/g')
 
-          # Use awk to get all branches after the base branch
+          # Use awk to get all branches that come after the base branch
           NEXT_BRANCHES=$(echo "$RELEASE_BRANCHES" | awk "/$ESCAPED_BASE_BRANCH/{flag=1; next} flag" | tr '\n' ' ')
+
+          # Debug output for next branches
+          echo "NEXT_BRANCHES=${NEXT_BRANCHES}"
+
+          # Export to environment variable if needed
           echo "NEXT_BRANCHES=${NEXT_BRANCHES}" >> $GITHUB_ENV
+
 
       - name: Check for Missing Cherry-Picks
         run: |

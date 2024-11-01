@@ -1,4 +1,22 @@
 
+{
+  "git": {
+    "requireCleanWorkingDir": true,
+    "tagName": "v${version}",
+    "commitMessage": "chore: release ${version}",
+    "tagAnnotation": "Release ${version}"
+  },
+  "github": {
+    "release": true,
+    "tokenRef": "GITHUB_TOKEN"
+  },
+  "npm": {
+    "publish": true,
+    "tokenRef": "NPM_TOKEN"
+  }
+}
+
+
 name: Auto-label PR for Release Branches
 
 on:

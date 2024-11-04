@@ -1,0 +1,110 @@
+name: Version Bump and Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.1)'
+        required: true
+      user_story:
+        description: 'User story or ticket number (e.g., US1234)'
+        required: true
+      commit_message:
+        description: 'Custom commit message'
+        required: true
+      branch:
+        description: 'Target release branch (e.g., release/main)'
+        required: true
+        default: 'release/main'
+
+  push:
+    branches:
+      - release/*  # Automatically triggers on any release/* branch
+
+jobs:
+  version-bump:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Node.js Version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name "${{ github.actor }}"
+
+      - name: Bump Version
+        run: |
+          npm version ${{ inputs.version }} --no-git-tag-version
+          git add package.json package-lock.json
+          git commit -m "${{ inputs.commit_message }}"
+
+      - name: Push Version Bump Branch
+        run: |
+          BRANCH_NAME="story/${{ inputs.user_story }}-${{ inputs.version }}"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+
+      - name: Create Pull Request
+        run: |
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d "{\"title\": \"chore: Bump version to ${{ inputs.version }}\", \"body\": \"Automated PR for version bump to ${{ inputs.version }} related to story ${{ inputs.user_story }}\", \"head\": \"$BRANCH_NAME\", \"base\": \"${{ inputs.branch }}\"}")
+          echo "$PR_RESPONSE" | jq
+          echo "::set-output name=pull-request-number::$(echo "$PR_RESPONSE" | jq -r '.number')"
+
+      - name: Enable Auto-Merge on Pull Request
+        if: steps.create_pr.outputs.pull-request-number != 'null'
+        run: |
+          curl -X PUT \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ steps.create_pr.outputs.pull-request-number }}/auto-merge \
+            -d "{\"merge_method\":\"squash\"}"
+
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Node.js Version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+            - name: Check for Version Change
+        id: version_check
+        run: |
+          # Check all changes since branching from the target branch (e.g., main or release/main)
+          if git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep -q "^package.json$" && \
+             git diff --name-only origin/${{ github.event.pull_request.base.ref }} | grep -q "^package-lock.json$"; then
+            echo "Both package.json and package-lock.json changed."
+            echo "publish=true" >> $GITHUB_ENV
+          else
+            echo "Required files not changed."
+            echo "publish=false" >> $GITHUB_ENV
+          fi
+
+      - name: Publish Package
+        if: env.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish

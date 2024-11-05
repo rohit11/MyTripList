@@ -48,9 +48,22 @@ jobs:
           # Use npm version to bump package.json and the main version in package-lock.json
           npm version ${{ inputs.version }} --no-git-tag-version
           
-          # Update only the specified "version" fields in package-lock.json
-          sed -i '' "0,/\"version\": \".*\"/s//\"version\": \"${{ inputs.version }}\"/" package-lock.json
-          sed -i '' "0,/\"\"[[:space:]]*:[[:space:]]*{[[:space:]]*\"version\": \".*\"/s//\"version\": \"${{ inputs.version }}\"/" package-lock.json
+          # Use Node.js to update specific version fields in package-lock.json
+          node -e "
+            const fs = require('fs');
+            const packageLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+            const newVersion = '${{ inputs.version }}';
+
+            // Update the top-level version
+            packageLock.version = newVersion;
+
+            // Update the nested package version
+            if (packageLock.packages && packageLock.packages['']) {
+              packageLock.packages[''].version = newVersion;
+            }
+
+            fs.writeFileSync('package-lock.json', JSON.stringify(packageLock, null, 2));
+          "
 
 
           git add package.json package-lock.json

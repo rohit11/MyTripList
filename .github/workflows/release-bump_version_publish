@@ -52,6 +52,7 @@ jobs:
           sed -i '' "0,/\"version\": \".*\"/s//\"version\": \"${{ inputs.version }}\"/" package-lock.json
           sed -i '' "0,/\"\"[[:space:]]*:[[:space:]]*{[[:space:]]*\"version\": \".*\"/s//\"version\": \"${{ inputs.version }}\"/" package-lock.json
 
+
           git add package.json package-lock.json
           git commit -m "${{ inputs.commit_message }}"
 

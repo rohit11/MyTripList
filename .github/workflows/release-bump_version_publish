@@ -80,22 +80,32 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           git push origin "$BRANCH_NAME"
 
-       - name: Create Pull Request
+      - name: Create Pull Request
         run: |
-          # Use the input branch as the base for the PR
+          # Use the input branch as the base for the PR and the unique branch name for the head
           PR_RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
-            -d "$(jq -n --arg title "chore: Bump version to ${{ inputs.version }}" \
-                            --arg body "Automated PR for version bump to ${{ inputs.version }} related to story ${{ inputs.user_story }}" \
-                            --arg head "$BRANCH_NAME" \
-                            --arg base "${{ inputs.branch }}" \
-                            '{title: $title, body: $body, head: $head, base: $base}')" )
+            -d "{
+                  \"title\": \"chore: Bump version to ${{ inputs.version }}\",
+                  \"body\": \"Automated PR for version bump to ${{ inputs.version }} related to story ${{ inputs.user_story }}\",
+                  \"head\": \"$BRANCH_NAME\",
+                  \"base\": \"${{ inputs.branch }}\"
+                }")
 
+          # Check the response and output for debugging
           echo "$PR_RESPONSE" | jq
-          echo "$(echo "$PR_RESPONSE" | jq -r '.number')" > pr_number.txt
-          echo "pull-request-number=$(cat pr_number.txt)" >> $GITHUB_ENV
+
+          # Extract the pull request number if the PR was created successfully
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+          if [ "$PR_NUMBER" == "null" ]; then
+            echo "Failed to create pull request."
+            exit 1
+          fi
+
+          echo "pull-request-number=$PR_NUMBER" >> $GITHUB_ENV
+
 
       - name: Enable Auto-Merge on Pull Request
         if: env.pull-request-number != ''

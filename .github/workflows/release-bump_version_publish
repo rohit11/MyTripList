@@ -82,7 +82,7 @@ jobs:
             -d "{\"merge_method\":\"squash\"}"
 
   publish:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/') && github.ref == format('refs/heads/release/{0}', inputs.branch)
     runs-on: ubuntu-latest
 
     steps:

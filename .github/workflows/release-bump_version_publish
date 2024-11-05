@@ -76,23 +76,30 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           git push origin "$BRANCH_NAME"
 
-      - name: Create Pull Request
+       - name: Create Pull Request
         run: |
+          # Use the input branch as the base for the PR
           PR_RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pulls \
-            -d "{\"title\": \"chore: Bump version to ${{ inputs.version }}\", \"body\": \"Automated PR for version bump to ${{ inputs.version }} related to story ${{ inputs.user_story }}\", \"head\": \"$BRANCH_NAME\", \"base\": \"${{ inputs.branch }}\"}")
+            -d "$(jq -n --arg title "chore: Bump version to ${{ inputs.version }}" \
+                            --arg body "Automated PR for version bump to ${{ inputs.version }} related to story ${{ inputs.user_story }}" \
+                            --arg head "$BRANCH_NAME" \
+                            --arg base "${{ inputs.branch }}" \
+                            '{title: $title, body: $body, head: $head, base: $base}')" )
+
           echo "$PR_RESPONSE" | jq
-          echo "::set-output name=pull-request-number::$(echo "$PR_RESPONSE" | jq -r '.number')"
+          echo "$(echo "$PR_RESPONSE" | jq -r '.number')" > pr_number.txt
+          echo "pull-request-number=$(cat pr_number.txt)" >> $GITHUB_ENV
 
       - name: Enable Auto-Merge on Pull Request
-        if: steps.create_pr.outputs.pull-request-number != 'null'
+        if: env.pull-request-number != ''
         run: |
           curl -X PUT \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/pulls/${{ steps.create_pr.outputs.pull-request-number }}/auto-merge \
+            https://api.github.com/repos/${{ github.repository }}/pulls/${{ env.pull-request-number }}/auto-merge \
             -d "{\"merge_method\":\"squash\"}"
 
   publish:

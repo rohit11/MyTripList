@@ -20,8 +20,8 @@ jobs:
         run: |
           echo "Adding random text to README.md file" >> README.md
           echo "Random text: $RANDOM" >> README.md
-          git config user.name "Admin User"
-          git config user.email "admin@example.com"
+          git config user.name "rohit11"
+          git config user.email "rohitnisal@gmail.com"
           git add README.md
           git commit -m "Update README with random text"
 

@@ -1,4 +1,4 @@
-name: Update README
+name: Update README with Admin PAT
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       branch:
         description: 'Branch to update'
         required: false
-        default: 'master'
+        default: 'release/1.0.0'
 
 jobs:
   update-readme:
@@ -16,24 +16,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set branch name
-        id: branch_name
-        run: echo "branch_name=${{ github.event.inputs.branch || 'master' }}" >> $GITHUB_ENV
-
       - name: Update README.md
         run: |
           echo "Adding random text to README.md file" >> README.md
           echo "Random text: $RANDOM" >> README.md
-
-      - name: Commit changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "Admin User"
+          git config user.email "admin@example.com"
           git add README.md
           git commit -m "Update README with random text"
 
-      - name: Push changes
+      - name: Push changes to branch with PAT
         env:
-          BRANCH_NAME: ${{ env.branch_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          git push origin $BRANCH_NAME
+          git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} ${{ github.event.inputs.branch || 'release/1.0.0' }} --force

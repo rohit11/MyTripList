@@ -23,29 +23,29 @@ jobs:
 
       - name: Extract feature flags and update documentation
         run: |
-          # Start with the table header in the FEATURE_FLAGS.md file
+          # Start with the table header in FEATURE_FLAGS.md
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
           
-          # Initialize count for the auto-incrementing count column
+          # Initialize count for auto-incrementing count column
           count=1
 
-          # Read through the FeatureFlagContext.tsx file line by line
-          while IFS= read -r line; do
-            # Match lines with key-value pairs (e.g., isFeatureEnabled: "ENABLE_FEATURE")
-            if [[ $line =~ ^[[:space:]]*([^[:space:]:]+)[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
-              # Extract key and value from the line
-              name="${BASH_REMATCH[1]}"
-              key="${BASH_REMATCH[2]}"
-              
-              # Append to FEATURE_FLAGS.md
-              echo "| $count | $name | $key |" >> "$FEATURE_FLAGS_DOC"
-              
-              # Increment count
-              ((count++))
-            fi
-          done < "$FEATURE_FLAG_FILE"
+          # Extract the FeatureFlagMapping content
+          awk '/export const FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
+          grep -E "^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*'[^']+'" |
+          sed -E "s/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*'([^']+)',?/\1 : \2/" > temp_flags.txt
 
-          # Display the content of FEATURE_FLAGS.md for debugging purposes
+          # Append each key-value pair to the documentation file
+          while IFS=":" read -r name key; do
+            name=$(echo "$name" | xargs)
+            key=$(echo "$key" | xargs)
+            echo "| $count | $name | $key |" >> "$FEATURE_FLAGS_DOC"
+            ((count++))
+          done < temp_flags.txt
+
+          # Remove the temporary file
+          rm temp_flags.txt
+
+          # Show final content of FEATURE_FLAGS.md for debugging
           echo "Updated FEATURE_FLAGS.md content:"
           cat "$FEATURE_FLAGS_DOC"
 

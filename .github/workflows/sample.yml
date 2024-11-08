@@ -25,10 +25,24 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Check if FeatureFlagContext.tsx was modified
+        id: file_check
         run: |
-          git diff --name-only HEAD^1 HEAD | grep -q "$FEATURE_FLAG_FILE" || exit 1
+          if git diff --name-only HEAD^1 HEAD | grep -q "$FEATURE_FLAG_FILE"; then
+            echo "file_modified=true" >> $GITHUB_ENV
+          else
+            echo "file_modified=false" >> $GITHUB_ENV
+          fi
+
+      - name: Ensure FEATURE_FLAGS.md exists
+        if: env.file_modified == 'true'
+        run: |
+          # Create FEATURE_FLAGS.md if it does not exist
+          if [ ! -f "$FEATURE_FLAGS_DOC" ]; then
+            echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
+          fi
 
       - name: Extract existing feature flags from documentation
+        if: env.file_modified == 'true'
         run: |
           # Extract existing flags from the documentation file, if it exists
           if [ -f "$FEATURE_FLAGS_DOC" ]; then
@@ -38,11 +52,13 @@ jobs:
           fi
 
       - name: Extract updated feature flags from FeatureFlagMapping
+        if: env.file_modified == 'true'
         run: |
           # Extract the feature flags from FeatureFlagMapping in FeatureFlagContext.tsx
           sed -n '/FeatureFlagMapping = {/,/};/p' "$FEATURE_FLAG_FILE" | grep ":" | sed 's/,//' > "$UPDATED_FLAGS_FILE"
 
       - name: Merge existing and updated feature flags
+        if: env.file_modified == 'true'
         run: |
           # Load existing flags into an associative array
           declare -A flag_map
@@ -64,6 +80,7 @@ jobs:
           done
 
       - name: Commit and Push Updated Documentation
+        if: env.file_modified == 'true'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

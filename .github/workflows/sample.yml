@@ -53,11 +53,13 @@ jobs:
         if: env.file_modified == 'true'
         run: |
           # Extract key-value pairs only from within FeatureFlagMapping, handling new lines and spaces
-          sed -n '/FeatureFlagMapping = {/,/}/p' "$FEATURE_FLAG_FILE" |
-            grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
-            sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
-          # Debugging output
-          echo "Extracted updated flags:"
+          awk '/FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
+          grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
+          sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' |
+          sed 's/[[:space:]]*$//; s/^[[:space:]]*//' > "$UPDATED_FLAGS_FILE"
+
+          # Debug output to verify the extracted key-value pairs
+          echo "Extracted key-value pairs:"
           cat "$UPDATED_FLAGS_FILE"
 
       - name: Merge existing and updated feature flags
@@ -71,33 +73,23 @@ jobs:
           while IFS="|" read -r _ name key _; do
             name=$(echo "$name" | xargs)
             key=$(echo "$key" | xargs)
-            if [[ -n "$name" && -n "$key" ]]; then
-              flag_map["$name"]="$key"
-              ordered_keys+=("$name")
-            fi
+            flag_map["$name"]="$key"
+            ordered_keys+=("$name")
           done < "$EXISTING_FLAGS_FILE"
 
           # Read updated flags, preserving order from code, and add any new flags at the end
           while IFS=":" read -r name key; do
             name=$(echo "$name" | xargs)
             key=$(echo "$key" | xargs)
-            if [[ -n "$name" && -n "$key" ]]; then
-              if [[ -z "${flag_map[$name]}" ]]; then
-                # New flag; add to map and order list
-                flag_map["$name"]="$key"
-                ordered_keys+=("$name")
-              else
-                # Existing flag; update the key if needed
-                flag_map["$name"]="$key"
-              fi
+            if [[ -z "${flag_map[$name]}" ]]; then
+              # New flag; add to map and order list
+              flag_map["$name"]="$key"
+              ordered_keys+=("$name")
+            else
+              # Existing flag; update the key if needed
+              flag_map["$name"]="$key"
             fi
           done < "$UPDATED_FLAGS_FILE"
-
-          # Debugging output
-          echo "Final ordered flags:"
-          for name in "${ordered_keys[@]}"; do
-            echo "$name : ${flag_map[$name]}"
-          done
 
           # Generate updated table content with Count, preserving order
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"

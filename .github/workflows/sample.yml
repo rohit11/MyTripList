@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - main  # Trigger on pull request merges to the main branch
+      - main
   push:
     branches:
-      - main  # Trigger on direct commits to the main branch
+      - main
 
 jobs:
   update_feature_flag_documentation:
@@ -36,7 +36,6 @@ jobs:
       - name: Ensure FEATURE_FLAGS.md exists
         if: env.file_modified == 'true'
         run: |
-          # Create FEATURE_FLAGS.md if it does not exist
           if [ ! -f "$FEATURE_FLAGS_DOC" ]; then
             echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
           fi
@@ -44,7 +43,6 @@ jobs:
       - name: Extract existing feature flags from documentation
         if: env.file_modified == 'true'
         run: |
-          # Extract existing flags from the documentation file, if it exists
           if [ -f "$FEATURE_FLAGS_DOC" ]; then
             grep -E '^\| ' "$FEATURE_FLAGS_DOC" | tail -n +3 > "$EXISTING_FLAGS_FILE"
           else
@@ -54,7 +52,7 @@ jobs:
       - name: Extract updated feature flags from FeatureFlagMapping
         if: env.file_modified == 'true'
         run: |
-          # Extract lines within the FeatureFlagMapping object that contain key-value pairs
+          # Extract key-value pairs only from within FeatureFlagMapping, handling new lines and spaces
           sed -n '/FeatureFlagMapping = {/,/}/p' "$FEATURE_FLAG_FILE" |
             grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
             sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
@@ -62,23 +60,36 @@ jobs:
       - name: Merge existing and updated feature flags
         if: env.file_modified == 'true'
         run: |
-          # Load existing flags into an associative array to maintain order
+          # Initialize an ordered array for final output
           declare -A flag_map
-          while IFS="|" read -r _ name key _; do
-            flag_map["$name"]="$key"
-          done < "$EXISTING_FLAGS_FILE"
+          ordered_keys=()
 
-          # Add new flags from the updated list, preserving sequence, and adding any new at the end
-          count=1
-          while IFS=":" read -r name key; do
+          # Read existing flags into flag_map and ordered_keys to preserve order
+          while IFS="|" read -r _ name key _; do
             name=$(echo "$name" | xargs)
             key=$(echo "$key" | xargs)
             flag_map["$name"]="$key"
+            ordered_keys+=("$name")
+          done < "$EXISTING_FLAGS_FILE"
+
+          # Read updated flags, preserving order from code, and add any new flags at the end
+          while IFS=":" read -r name key; do
+            name=$(echo "$name" | xargs)
+            key=$(echo "$key" | xargs)
+            if [[ -z "${flag_map[$name]}" ]]; then
+              # New flag; add to map and order list
+              flag_map["$name"]="$key"
+              ordered_keys+=("$name")
+            else
+              # Existing flag; update the key if needed
+              flag_map["$name"]="$key"
+            fi
           done < "$UPDATED_FLAGS_FILE"
 
-          # Generate updated table content with auto-incrementing Count
+          # Generate updated table content with Count, preserving order
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
-          for name in "${!flag_map[@]}"; do
+          count=1
+          for name in "${ordered_keys[@]}"; do
             echo "| $count | $name | ${flag_map[$name]} |" >> "$FEATURE_FLAGS_DOC"
             ((count++))
           done

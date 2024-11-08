@@ -10,3 +10,28 @@
 
 - name: Use New Version Variable
   run: echo "The new version is $NEW_VERSION"
+
+
+- name: Get Current Version and Increment Patch
+  id: versioning
+  run: |
+    # Read the current version from package.json
+    CURRENT_VERSION=$(jq -r '.version' package.json)
+    
+    # Split the version into major, minor, and patch
+    IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+    
+    # Increment the patch version
+    NEW_PATCH=$((patch + 1))
+    NEW_VERSION="$major.$minor.$NEW_PATCH"
+    
+    # Store the new version in GitHub Actions output for later use
+    echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+- name: Checkout Code
+  uses: actions/checkout@v4
+
+- name: Use New Version Variable
+  run: echo "The new version is $NEW_VERSION"
+
+# Later steps can use $NEW_VERSION wherever the updated version is needed

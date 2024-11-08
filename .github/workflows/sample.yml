@@ -55,12 +55,7 @@ jobs:
           # Extract key-value pairs only from within FeatureFlagMapping, handling new lines and spaces
           awk '/FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
           grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
-          sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' |
-          sed 's/[[:space:]]*$//; s/^[[:space:]]*//' > "$UPDATED_FLAGS_FILE"
-
-          # Debug output to verify the extracted key-value pairs
-          echo "Extracted key-value pairs:"
-          cat "$UPDATED_FLAGS_FILE"
+          sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
 
       - name: Merge existing and updated feature flags
         if: env.file_modified == 'true'

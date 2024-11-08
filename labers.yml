@@ -1,2 +1,12 @@
-release:
-  - 'release/*'
+- name: Get and Increment Patch Version
+  id: versioning
+  run: |
+    # Increment patch version without updating package.json
+    NEW_VERSION=$(npm version patch --no-git-tag-version | sed 's/v//')
+    echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+- name: Checkout Code
+  uses: actions/checkout@v4
+
+- name: Use New Version Variable
+  run: echo "The new version is $NEW_VERSION"

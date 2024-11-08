@@ -21,33 +21,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Node.js and install dependencies
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-        run: |
-          npm install typescript ts-node @types/node
-
-      - name: Extract Feature Flags with ts-node
-        run: |
-          # Use ts-node to extract feature flags and save to temp_flags.json
-          echo "import { FeatureFlagMapping } from './${FEATURE_FLAG_FILE}';" > extract.ts
-          echo "console.log(JSON.stringify(Object.entries(FeatureFlagMapping).map(([key, value]) => ({ key, value })), null, 2));" >> extract.ts
-          npx ts-node extract.ts > temp_flags.json
-
       - name: Generate FEATURE_FLAGS.md
         run: |
-          # Start with the table header
+          # Initialize FEATURE_FLAGS.md with the table header
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
 
-          # Read the temp_flags.json file
-          count=1
-          jq -c '.[]' temp_flags.json | while read -r flag; do
-            name=$(echo "$flag" | jq -r .key)
-            value=$(echo "$flag" | jq -r .value)
-            echo "| $count | $name | $value |" >> "$FEATURE_FLAGS_DOC"
-            ((count++))
-          done
+          # Use awk to read the FeatureFlagMapping block and extract key-value pairs
+          awk '
+            /export const FeatureFlagMapping = {/ { in_block = 1; next }
+            /} as const;/ { in_block = 0 }
+            in_block && /^[[:space:]]*[a-zA-Z0-9]+[[:space:]]*:/ {
+              # Match key-value pairs, allowing for spaces and newlines
+              if (match($0, /^[[:space:]]*([a-zA-Z0-9]+)[[:space:]]*:[[:space:]]*'\''([^'\'']+)'\''/, arr)) {
+                key = arr[1]
+                value = arr[2]
+                printf "| %d | %s | %s |\n", ++count, key, value
+              }
+            }
+          ' "$FEATURE_FLAG_FILE" >> "$FEATURE_FLAGS_DOC"
 
           # Show final content of FEATURE_FLAGS.md for debugging
           echo "Updated FEATURE_FLAGS.md content:"

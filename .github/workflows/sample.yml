@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - main  # Trigger on pull request merges to the main branch
+      - main
   push:
     branches:
-      - main  # Trigger on direct commits to the main branch
+      - main
 
 jobs:
   update_feature_flag_documentation:
@@ -25,19 +25,23 @@ jobs:
         run: |
           # Start with the table header in FEATURE_FLAGS.md
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
-          
+
           # Initialize count for auto-incrementing count column
           count=1
 
-          # Extract the FeatureFlagMapping content
-          awk '/export const FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
-          grep -E "^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*['\"].*['\"]" |
-          sed -E "s/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*['\"]([^'\"]+)['\"],?/\1 : \2/" > temp_flags.txt
+          # Use perl to extract key-value pairs from FeatureFlagMapping
+          perl -n -e '
+            if (/export const FeatureFlagMapping = \{/) { $in_mapping = 1; next }
+            if ($in_mapping && /\}/) { $in_mapping = 0 }
+            if ($in_mapping && /\s*(\w+)\s*:\s*'\''([^'\'']+)'\''/) {
+              print "$1 : $2\n";
+            }
+          ' "$FEATURE_FLAG_FILE" > temp_flags.txt
 
           # Append each key-value pair to the documentation file
           while IFS=":" read -r name key; do
-            name=$(echo "$name" | xargs)
-            key=$(echo "$key" | xargs)
+            name=$(echo "$name" | xargs)  # Trim any leading/trailing spaces
+            key=$(echo "$key" | xargs)    # Trim any leading/trailing spaces
             echo "| $count | $name | $key |" >> "$FEATURE_FLAGS_DOC"
             ((count++))
           done < temp_flags.txt

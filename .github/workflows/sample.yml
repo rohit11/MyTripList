@@ -54,8 +54,11 @@ jobs:
       - name: Extract updated feature flags from FeatureFlagMapping
         if: env.file_modified == 'true'
         run: |
-          # Extract the feature flags from FeatureFlagMapping in FeatureFlagContext.tsx
-          sed -n '/FeatureFlagMapping = {/,/};/p' "$FEATURE_FLAG_FILE" | grep ":" | sed 's/,//' > "$UPDATED_FLAGS_FILE"
+          # Use sed to capture the lines within the FeatureFlagMapping object
+          sed -n '/export const FeatureFlagMapping = {/,/};/p' "$FEATURE_FLAG_FILE" |
+          grep -E '^[[:space:]]*[a-zA-Z0-9]+Enabled[[:space:]]*:[[:space:]]*' |
+          sed -E 's/^[[:space:]]*([a-zA-Z0-9]+Enabled)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
+
 
       - name: Merge existing and updated feature flags
         if: env.file_modified == 'true'

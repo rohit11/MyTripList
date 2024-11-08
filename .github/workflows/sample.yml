@@ -31,8 +31,8 @@ jobs:
 
           # Extract the FeatureFlagMapping content
           awk '/export const FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
-          grep -E "^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*'[^']+'" |
-          sed -E "s/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*'([^']+)',?/\1 : \2/" > temp_flags.txt
+          grep -E "^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*['\"].*['\"]" |
+          sed -E "s/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*['\"]([^'\"]+)['\"],?/\1 : \2/" > temp_flags.txt
 
           # Append each key-value pair to the documentation file
           while IFS=":" read -r name key; do

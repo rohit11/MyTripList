@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - main  # Trigger on pull request merges to the main branch
+      - main
   push:
     branches:
-      - main  # Trigger on direct commits to the main branch
+      - main
 
 jobs:
   update_feature_flag_documentation:
@@ -16,50 +16,39 @@ jobs:
     env:
       FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
       FEATURE_FLAG_FILE: "src/contexts/featureFlags/FeatureFlagContext.tsx"
-      UPDATED_FLAGS_FILE: "updated_flags.txt"
       TABLE_HEADER: "| Count | Feature Flag Name | Flag Key |\n|-------|-------------------|----------|"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Check if FeatureFlagContext.tsx was modified
-        id: file_check
-        run: |
-          if git diff --name-only HEAD^1 HEAD | grep -q "$FEATURE_FLAG_FILE"; then
-            echo "file_modified=true" >> $GITHUB_ENV
-          else
-            echo "file_modified=false" >> $GITHUB_ENV
-          fi
+      - name: Force file_modified to true
+        run: echo "file_modified=true" >> $GITHUB_ENV
 
-      - name: Extract feature flags from FeatureFlagMapping
-        if: env.file_modified == 'true'
-        run: |
-          # Extract key-value pairs from within FeatureFlagMapping, handling new lines and spaces
-          awk '/FeatureFlagMapping = {/,/} as const;/' "$FEATURE_FLAG_FILE" |
-          grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
-          sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
-          
-          # Debugging output for verification
-          echo "Extracted key-value pairs:"
-          cat "$UPDATED_FLAGS_FILE"
-
-      - name: Overwrite FEATURE_FLAGS.md with updated content
+      - name: Extract feature flags and update documentation
         if: env.file_modified == 'true'
         run: |
           # Start with the table header
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
-
+          
           # Initialize count for auto-incrementing count column
           count=1
-          
-          # Append each key-value pair to the documentation file
-          while IFS=":" read -r name key; do
-            name=$(echo "$name" | xargs)
-            key=$(echo "$key" | xargs)
-            echo "| $count | $name | $key |" >> "$FEATURE_FLAGS_DOC"
-            ((count++))
-          done < "$UPDATED_FLAGS_FILE"
+
+          # Read through the FeatureFlagContext.tsx file line by line
+          while IFS= read -r line; do
+            # Match lines with key-value pairs (e.g., isFeatureEnabled: "ENABLE_FEATURE")
+            if [[ $line =~ ^[[:space:]]*([^[:space:]:]+)[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
+              # Extract key and value from the line
+              name="${BASH_REMATCH[1]}"
+              key="${BASH_REMATCH[2]}"
+              
+              # Append to FEATURE_FLAGS.md
+              echo "| $count | $name | $key |" >> "$FEATURE_FLAGS_DOC"
+              
+              # Increment count
+              ((count++))
+            fi
+          done < "$FEATURE_FLAG_FILE"
 
           # Show final content of FEATURE_FLAGS.md for debugging
           echo "Updated FEATURE_FLAGS.md content:"

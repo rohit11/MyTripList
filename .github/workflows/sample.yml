@@ -18,7 +18,7 @@ jobs:
       FEATURE_FLAG_FILE: "src/contexts/featureFlags/FeatureFlagContext.tsx"
       EXISTING_FLAGS_FILE: "existing_flags.txt"
       UPDATED_FLAGS_FILE: "updated_flags.txt"
-      TABLE_HEADER: "| Feature Flag Name | Flag Key |\n|-------------------|----------|"
+      TABLE_HEADER: "| Count | Feature Flag Name | Flag Key |\n|-------|-------------------|----------|"
 
     steps:
       - name: Checkout code
@@ -54,32 +54,33 @@ jobs:
       - name: Extract updated feature flags from FeatureFlagMapping
         if: env.file_modified == 'true'
         run: |
-          # Use sed to capture the lines within the FeatureFlagMapping object
-          sed -n '/export const FeatureFlagMapping = {/,/};/p' "$FEATURE_FLAG_FILE" |
-          grep -E '^[[:space:]]*[a-zA-Z0-9]+Enabled[[:space:]]*:[[:space:]]*' |
-          sed -E 's/^[[:space:]]*([a-zA-Z0-9]+Enabled)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
-
+          # Extract lines within the FeatureFlagMapping object that contain key-value pairs
+          sed -n '/FeatureFlagMapping = {/,/}/p' "$FEATURE_FLAG_FILE" |
+            grep -E '^[[:space:]]*[^:]+[[:space:]]*:[[:space:]]*".*"' |
+            sed -E 's/^[[:space:]]*([^:]+)[[:space:]]*:[[:space:]]*"([^"]+)",?/\1 : \2/' > "$UPDATED_FLAGS_FILE"
 
       - name: Merge existing and updated feature flags
         if: env.file_modified == 'true'
         run: |
-          # Load existing flags into an associative array
+          # Load existing flags into an associative array to maintain order
           declare -A flag_map
           while IFS="|" read -r _ name key _; do
             flag_map["$name"]="$key"
           done < "$EXISTING_FLAGS_FILE"
 
-          # Update the array with the latest flags, preserving order for existing flags and adding new at the end
+          # Add new flags from the updated list, preserving sequence, and adding any new at the end
+          count=1
           while IFS=":" read -r name key; do
             name=$(echo "$name" | xargs)
             key=$(echo "$key" | xargs)
             flag_map["$name"]="$key"
           done < "$UPDATED_FLAGS_FILE"
 
-          # Generate updated table content
+          # Generate updated table content with auto-incrementing Count
           echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
           for name in "${!flag_map[@]}"; do
-            echo "| $name | ${flag_map[$name]} |" >> "$FEATURE_FLAGS_DOC"
+            echo "| $count | $name | ${flag_map[$name]} |" >> "$FEATURE_FLAGS_DOC"
+            ((count++))
           done
 
       - name: Commit and Push Updated Documentation

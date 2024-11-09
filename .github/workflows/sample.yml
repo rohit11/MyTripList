@@ -57,83 +57,104 @@ jobs:
         id: extract-latest-release-flags
         run: |
           git checkout ${{ steps.get-latest-release.outputs.latest_branch }}
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-              process.exit(1);
-            }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-              console.log(\`\${key}=\${value}\`);
-            }
-          " > latest_release_flags.txt
+          if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
+            node -e "
+              const fs = require('fs');
+              const path = require('path');
+              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE);
+              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+              if (!match || !match[1]) {
+                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                process.exit(1);
+              }
+              const objectContent = '{' + match[1].trim() + '}';
+              const FeatureFlagMapping = eval('(' + objectContent + ')');
+              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                console.log(\`\${key}=\${value}\`);
+              }
+            " > latest_release_flags.txt
+          else
+            echo "FeatureFlags.tsx not found in latest release branch; skipping."
+            touch latest_release_flags.txt
+          fi
 
       - name: Extract Feature Flags from Previous Release Branch
         if: steps.get-latest-release.outputs.previous_branch
         id: extract-previous-release-flags
         run: |
           git checkout ${{ steps.get-latest-release.outputs.previous_branch }}
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-              process.exit(1);
-            }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-              console.log(\`\${key}=\${value}\`);
-            }
-          " > previous_release_flags.txt
+          if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
+            node -e "
+              const fs = require('fs');
+              const path = require('path');
+              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE);
+              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+              if (!match || !match[1]) {
+                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                process.exit(1);
+              }
+              const objectContent = '{' + match[1].trim() + '}';
+              const FeatureFlagMapping = eval('(' + objectContent + ')');
+              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                console.log(\`\${key}=\${value}\`);
+              }
+            " > previous_release_flags.txt
+          else
+            echo "FeatureFlags.tsx not found in previous release branch; skipping."
+            touch previous_release_flags.txt
+          fi
 
       - name: Extract Feature Flags from Main Branch
         id: extract-main-flags
         run: |
           git checkout main
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-              process.exit(1);
-            }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-              console.log(\`\${key}=\${value}\`);
-            }
-          " > main_flags.txt
+          if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
+            node -e "
+              const fs = require('fs');
+              const path = require('path');
+              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE);
+              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+              if (!match || !match[1]) {
+                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                process.exit(1);
+              }
+              const objectContent = '{' + match[1].trim() + '}';
+              const FeatureFlagMapping = eval('(' + objectContent + ')');
+              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                console.log(\`\${key}=\${value}\`);
+              }
+            " > main_flags.txt
+          else
+            echo "FeatureFlags.tsx not found in main branch; skipping."
+            touch main_flags.txt
+          fi
 
       - name: Generate Feature Flags Documentation
         run: |
           # Initialize associative arrays
           declare -A latest_release_flags previous_release_flags main_flags
 
-          # Populate arrays from extracted files
-          while IFS='=' read -r key value; do
-            latest_release_flags["$key"]="$value"
-          done < latest_release_flags.txt
+          # Check if files exist before populating arrays
+          if [ -f latest_release_flags.txt ]; then
+            while IFS='=' read -r key value; do
+              latest_release_flags["$key"]="$value"
+            done < latest_release_flags.txt
+          fi
 
-          while IFS='=' read -r key value; do
-            previous_release_flags["$key"]="$value"
-          done < previous_release_flags.txt
+          if [ -f previous_release_flags.txt ]; then
+            while IFS='=' read -r key value; do
+              previous_release_flags["$key"]="$value"
+            done < previous_release_flags.txt
+          fi
 
-          while IFS='=' read -r key value; do
-            main_flags["$key"]="$value"
-          done < main_flags.txt
+          if [ -f main_flags.txt ]; then
+            while IFS='=' read -r key value; do
+              main_flags["$key"]="$value"
+            done < main_flags.txt
+          fi
 
           # Begin Markdown content
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}

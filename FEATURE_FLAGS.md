@@ -1,6 +1,6 @@
 # Feature Flags Documentation
 
-> **No release branch found; only main branch feature flags are displayed.**
+> **Comparison between `main` and `  release/1.0.0`**
 
 | Count | Key | Release Value (latest release) | Main Value | Status |
 |-------|-----|-------------------------------|------------|--------|

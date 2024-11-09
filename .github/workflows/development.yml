@@ -1,4 +1,4 @@
-name: Development Feature Flags Documentation
+name: Update Feature Flags Documentation
 
 on:
   schedule:

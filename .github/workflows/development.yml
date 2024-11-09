@@ -369,7 +369,11 @@ jobs:
           # Compare latest release with main
           if [ -n "$latest_branch" ]; then
             compare_flags latest_release_flags main_flags "$latest_branch" "main"
+          else 
+            echo "No Latest release available for comparison."
+            compare_flags latest_release_flags main_flags "$latest_branch" "main"
           fi
+          
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}

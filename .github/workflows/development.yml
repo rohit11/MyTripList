@@ -243,9 +243,50 @@ jobs:
             echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           fi
 
+          # Full Comparison Table
+          echo "## Full Feature Flags Comparison" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "| Count | Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "|-------|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+          # Track processed keys to avoid duplicates in full table
+          declare -A seen_keys
+          count=1
+
+          # Full table with release_flags first
+          for key in "${!release_flags[@]}"; do
+            release_value="${release_flags[$key]}"
+            main_value="${main_flags[$key]:-N/A}"
+            status=""
+
+            if [[ "$main_value" == "N/A" ]]; then
+              status="Deleted 🔴"
+            elif [[ "$release_value" != "$main_value" ]]; then
+              status="Updated 🟡"
+            else
+              status="Unchanged ⚪"
+            fi
+
+            echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            seen_keys["$key"]=1
+            ((count++))
+          done
+
+          # Append remaining keys from main_flags
+          for key in "${!main_flags[@]}"; do
+            if [[ -z "${seen_keys[$key]}" ]]; then
+              release_value="N/A"
+              main_value="${main_flags[$key]}"
+              status="New 🔵"
+
+              echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              ((count++))
+            fi
+          done
+
           # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
+          
           
       - name: Cleanup Temporary Files
         run: |

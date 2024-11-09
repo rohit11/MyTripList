@@ -48,6 +48,11 @@ jobs:
             touch main_flags.txt
           fi
 
+      - name: Print Extracted Main Branch Flags
+        run: |
+          echo "Extracted Feature Flags from Main Branch:"
+          cat main_flags.txt || echo "No flags extracted from Main Branch."
+
   # Step 2: Identify All Release Branches
   identify-release-branches:
     runs-on: ubuntu-latest
@@ -116,6 +121,11 @@ jobs:
             touch latest_release_flags.txt
           fi
 
+      - name: Print Extracted Latest Release Branch Flags
+        run: |
+          echo "Extracted Feature Flags from Latest Release Branch:"
+          cat latest_release_flags.txt || echo "No flags extracted from Latest Release Branch."
+
   # Step 4: Extract Feature Flags from Previous Release Branch
   extract-previous-release:
     runs-on: ubuntu-latest
@@ -151,6 +161,11 @@ jobs:
             touch previous_release_flags.txt
           fi
 
+      - name: Print Extracted Previous Release Branch Flags
+        run: |
+          echo "Extracted Feature Flags from Previous Release Branch:"
+          cat previous_release_flags.txt || echo "No flags extracted from Previous Release Branch."
+
   # Step 5: Generate Documentation
   generate-documentation:
     runs-on: ubuntu-latest
@@ -166,20 +181,20 @@ jobs:
           # Initialize associative arrays for flags
           declare -A main_flags latest_release_flags previous_release_flags
 
-          # Load flags from extracted files if they exist
-          if [ -f main_flags.txt ]; then
+          # Load flags from extracted files if they exist and are non-empty
+          if [ -s main_flags.txt ]; then
             while IFS='=' read -r key value; do
               main_flags["$key"]="$value"
             done < main_flags.txt
           fi
 
-          if [ -f latest_release_flags.txt ]; then
+          if [ -s latest_release_flags.txt ]; then
             while IFS='=' read -r key value; do
               latest_release_flags["$key"]="$value"
             done < latest_release_flags.txt
           fi
 
-          if [ -f previous_release_flags.txt ]; then
+          if [ -s previous_release_flags.txt ]; then
             while IFS='=' read -r key value; do
               previous_release_flags["$key"]="$value"
             done < previous_release_flags.txt
@@ -193,66 +208,45 @@ jobs:
           latest_branch="${{ needs.identify-release-branches.outputs.latest_branch }}"
           previous_branch="${{ needs.identify-release-branches.outputs.previous_branch }}"
 
-          if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
+          if [ -n "$latest_branch" ] && [ -n "$previous_branch" ] && [ -s latest_release_flags.txt ] && [ -s previous_release_flags.txt ]; then
             echo "## Comparison Between Latest and Previous Release Branches" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "| Count | Key | Latest Value ($latest_branch) | Previous Value ($previous_branch) | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "|-------|-----|-----------------|-----------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-            # Compare latest with previous release flags
             count=1
             for key in "${!latest_release_flags[@]}"; do
               latest_value="${latest_release_flags[$key]}"
               previous_value="${previous_release_flags[$key]:-N/A}"
-              if [[ "$previous_value" == "N/A" ]]; then
-                status="New 🔵"
-              elif [[ "$latest_value" != "$previous_value" ]]; then
-                status="Updated 🟡"
-              else
-                status="Unchanged ⚪"
-              fi
+              status=$([[ "$previous_value" == "N/A" ]] && echo "New 🔵" || ([[ "$latest_value" != "$previous_value" ]] && echo "Updated 🟡" || echo "Unchanged ⚪"))
               echo "| $count | $key | \`$latest_value\` | \`$previous_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
               ((count++))
             done
             for key in "${!previous_release_flags[@]}"; do
-              if [[ -z "${latest_release_flags[$key]}" ]]; then
-                echo "| $count | $key | N/A | \`${previous_release_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                ((count++))
-              fi
+              [[ -z "${latest_release_flags[$key]}" ]] && echo "| $count | $key | N/A | \`${previous_release_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }} && ((count++))
             done
           fi
 
           # Case 2: Compare Latest Release with Main Branch
-          echo "## Comparison Between Latest Release and Main Branch" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "| Count | Key | Latest Value ($latest_branch) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "|-------|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-          # Compare latest release flags with main flags
-          count=1
-          for key in "${!latest_release_flags[@]}"; do
-            latest_value="${latest_release_flags[$key]}"
-            main_value="${main_flags[$key]:-N/A}"
-            if [[ "$main_value" == "N/A" ]]; then
-              status="New 🔵"
-            elif [[ "$latest_value" != "$main_value" ]]; then
-              status="Updated 🟡"
-            else
-              status="Unchanged ⚪"
-            fi
-            echo "| $count | $key | \`$latest_value\` | \`$main_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            ((count++))
-          done
-          for key in "${!main_flags[@]}"; do
-            if [[ -z "${latest_release_flags[$key]}" ]]; then
-              echo "| $count | $key | N/A | \`${main_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          if [ -n "$latest_branch" ] && [ -s latest_release_flags.txt ]; then
+            echo "## Comparison Between Latest Release and Main Branch" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | Key | Latest Value ($latest_branch) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            count=1
+            for key in "${!latest_release_flags[@]}"; do
+              latest_value="${latest_release_flags[$key]}"
+              main_value="${main_flags[$key]:-N/A}"
+              status=$([[ "$main_value" == "N/A" ]] && echo "New 🔵" || ([[ "$latest_value" != "$main_value" ]] && echo "Updated 🟡" || echo "Unchanged ⚪"))
+              echo "| $count | $key | \`$latest_value\` | \`$main_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
               ((count++))
-            fi
-          done
+            done
+            for key in "${!main_flags[@]}"; do
+              [[ -z "${latest_release_flags[$key]}" ]] && echo "| $count | $key | N/A | \`${main_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }} && ((count++))
+            done
+          fi
 
           # Case 3: Full Summary of Main Branch Flags
           echo "## Full Summary of Main Branch Feature Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
           echo "| Count | Key | Main Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
           echo "|-------|-----|------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
           count=1
           for key in "${!main_flags[@]}"; do
             echo "| $count | $key | \`${main_flags[$key]}\` |" >> ${{ env.FEATURE_FLAGS_DOC }}

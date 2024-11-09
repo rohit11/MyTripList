@@ -172,21 +172,21 @@ jobs:
             updated_changes=()
             deleted_changes=()
 
-            # Identify new, updated, and deleted flags
-            for key in "${!source_flags[@]}"; do
-              source_value="${source_flags[$key]}"
-              target_value="${target_flags[$key]:-N/A}"
+            # Identify new, updated, and deleted flags based on branch logic
+            for key in "${!target_flags[@]}"; do
+              source_value="${source_flags[$key]:-N/A}"
+              target_value="${target_flags[$key]}"
 
-              if [[ "$target_value" == "N/A" ]]; then
-                deleted_changes+=("| $key | \`$source_value\` | N/A | **Deleted 🔴** |")
+              if [[ "$source_value" == "N/A" ]]; then
+                new_changes+=("| $key | N/A | \`$target_value\` | **New 🔵** |")
               elif [[ "$source_value" != "$target_value" ]]; then
                 updated_changes+=("| $key | \`$source_value\` | \`$target_value\` | **Updated 🟡** |")
               fi
             done
 
-            for key in "${!target_flags[@]}"; do
-              if [[ -z "${source_flags[$key]}" ]]; then
-                new_changes+=("| $key | N/A | \`${target_flags[$key]}\` | **New 🔵** |")
+            for key in "${!source_flags[@]}"; do
+              if [[ -z "${target_flags[$key]}" ]]; then
+                deleted_changes+=("| $key | \`${source_flags[$key]}\` | N/A | **Deleted 🔴** |")
               fi
             done
 
@@ -252,6 +252,7 @@ jobs:
               fi
             done
           }
+
 
           # Compare latest release with main
           if [ -n "$latest_branch" ]; then

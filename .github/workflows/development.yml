@@ -361,18 +361,20 @@ jobs:
             fi
           fi
 
+          compare_latest_to_previous_release latest_release_flags previous_release_flags "$latest_branch" "$previous_branch"
+
           # Compare latest release with previous release if both are available
           #if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
-            #compare_flags latest_release_flags previous_release_flags "$latest_branch" "$previous_branch"
+            #compare_flags latest_release_flags main_flags "$latest_branch" "$main"
           #fi
 
           # Compare latest release with main
-          if [ -n "$latest_branch" ]; then
-            compare_flags latest_release_flags main_flags "$latest_branch" "main"
-          else 
-            echo "No Latest release available for comparison."
-            compare_flags latest_release_flags main_flags "$latest_branch" "main"
-          fi
+          #if [ -n "$latest_branch" ]; then
+            #compare_flags latest_release_flags main_flags "$latest_branch" "main"
+          #else 
+            #echo "No Latest release available for comparison."
+            #compare_flags latest_release_flags main_flags "$latest_branch" "main"
+          #fi
           
 
           echo "Generated FEATURE_FLAGS.md content:"

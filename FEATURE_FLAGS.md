@@ -1,5 +1,13 @@
 # Feature Flags Documentation
 
+## Feature Flags in `release/1.0.0`
+| Count | Key              | release/1.0.0 Value       |
+|-------|------------------|---------------------------|
+| 1 | isFeaure1Enabled | `ENABLE_FEATURE_1` |
+| 2 | isFeaure3Enabled | `ENABLE_FEATURE_3` |
+| 3 | isFeaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Enabled | `ENABLE_Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure_3` |
+| 4 | isFeaure2Enabled | `ENABLE_FEATURE_2` |
+
 ## Comparison between `release/1.0.0` and `main`
 ### New Flags
 | Key | release/1.0.0 Value | main Value | Status |

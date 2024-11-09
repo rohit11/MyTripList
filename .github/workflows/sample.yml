@@ -3,12 +3,12 @@ name: Update Feature Flags Documentation with Comparison
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 env:
-  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
-  FEATURE_FLAG_FILE: "FeatureFlags.tsx"
+  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"               # Adjust the path if needed
+  FEATURE_FLAG_FILE: "FeatureFlags.tsx"                # Adjust the path if needed
 
 jobs:
   update-doc:
@@ -43,7 +43,7 @@ jobs:
       - name: Read Feature Flags from Main Branch
         id: read-main-flags
         run: |
-          git checkout master
+          git checkout main
           node readFeatureFlags.js
         env:
           FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}

@@ -14,22 +14,19 @@ env:
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:
-  update-doc:
+  identify-branches:
     runs-on: ubuntu-latest
-
+    outputs:
+      latest_branch: ${{ steps.branch-info.outputs.latest_branch }}
+      previous_branch: ${{ steps.branch-info.outputs.previous_branch }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all branches to ensure release branches are available
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Identify Release Branches and Get Latest Two
-        id: get-latest-release
+      - name: Identify Release Branches
+        id: branch-info
         run: |
           echo "Listing all remote branches:"
           git branch -r
@@ -52,11 +49,21 @@ jobs:
             echo "previous_branch=${release_branches[1]}" >> $GITHUB_OUTPUT
           fi
 
+  extract-latest-release:
+    runs-on: ubuntu-latest
+    needs: identify-branches
+    if: needs.identify-branches.outputs.latest_branch
+    outputs:
+      latest_release_extracted: ${{ steps.extract.outputs.latest_release_extracted }}
+    steps:
+      - name: Checkout latest release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.identify-branches.outputs.latest_branch }}
+
       - name: Extract Feature Flags from Latest Release Branch
-        if: steps.get-latest-release.outputs.latest_branch
-        id: extract-latest-release-flags
+        id: extract
         run: |
-          git checkout ${{ steps.get-latest-release.outputs.latest_branch }}
           if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
             node -e "
               const fs = require('fs');
@@ -74,16 +81,28 @@ jobs:
                 console.log(\`\${key}=\${value}\`);
               }
             " > latest_release_flags.txt
+            echo "latest_release_extracted=true" >> $GITHUB_OUTPUT
           else
             echo "FeatureFlags.tsx not found in latest release branch; skipping."
             touch latest_release_flags.txt
+            echo "latest_release_extracted=false" >> $GITHUB_OUTPUT
           fi
 
+  extract-previous-release:
+    runs-on: ubuntu-latest
+    needs: identify-branches
+    if: needs.identify-branches.outputs.previous_branch
+    outputs:
+      previous_release_extracted: ${{ steps.extract.outputs.previous_release_extracted }}
+    steps:
+      - name: Checkout previous release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.identify-branches.outputs.previous_branch }}
+
       - name: Extract Feature Flags from Previous Release Branch
-        if: steps.get-latest-release.outputs.previous_branch
-        id: extract-previous-release-flags
+        id: extract
         run: |
-          git checkout ${{ steps.get-latest-release.outputs.previous_branch }}
           if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
             node -e "
               const fs = require('fs');
@@ -101,15 +120,24 @@ jobs:
                 console.log(\`\${key}=\${value}\`);
               }
             " > previous_release_flags.txt
+            echo "previous_release_extracted=true" >> $GITHUB_OUTPUT
           else
             echo "FeatureFlags.tsx not found in previous release branch; skipping."
             touch previous_release_flags.txt
+            echo "previous_release_extracted=false" >> $GITHUB_OUTPUT
           fi
 
+  extract-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Extract Feature Flags from Main Branch
-        id: extract-main-flags
+        id: extract
         run: |
-          git checkout main
           if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
             node -e "
               const fs = require('fs');
@@ -132,12 +160,21 @@ jobs:
             touch main_flags.txt
           fi
 
+  generate-documentation:
+    runs-on: ubuntu-latest
+    needs: [extract-main, extract-latest-release, extract-previous-release]
+    steps:
+      - name: Checkout for Documentation Update
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Generate Feature Flags Documentation
         run: |
           # Initialize associative arrays
           declare -A latest_release_flags previous_release_flags main_flags
 
-          # Check if files exist before populating arrays
+          # Load flags from extracted files if they exist
           if [ -f latest_release_flags.txt ]; then
             while IFS='=' read -r key value; do
               latest_release_flags["$key"]="$value"
@@ -160,14 +197,15 @@ jobs:
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          latest_branch="${{ steps.get-latest-release.outputs.latest_branch }}"
-          previous_branch="${{ steps.get-latest-release.outputs.previous_branch }}"
+          latest_branch="${{ needs.identify-branches.outputs.latest_branch }}"
+          previous_branch="${{ needs.identify-branches.outputs.previous_branch }}"
 
+          # If two release branches are present, compare latest with previous
           if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
             echo "> **Comparison between \`$latest_branch\` and \`$previous_branch\`**" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-            # Summary of changes
+            # Summary of changes between latest and previous release
             echo "## Changes Between Latest and Previous Release" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "| Key | Latest Value (\`$latest_branch\`) | Previous Value (\`$previous_branch\`) | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "|-----|----------------|------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
@@ -194,8 +232,8 @@ jobs:
             echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           fi
 
-          # Compare latest release with main branch
-          if [ -n "$latest_branch" ]; then
+          # If only one release branch, compare with main branch
+          if [ -n "$latest_branch" ] && [ -z "$previous_branch" ]; then
             echo "## Comparison of \`$latest_branch\` and \`main\` Branch" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "| Key | Latest Release Value (\`$latest_branch\`) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}

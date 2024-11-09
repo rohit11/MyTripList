@@ -98,26 +98,32 @@ jobs:
           echo "| Count | Key | Release Value (latest release) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
           echo "|-------|-----|-------------------------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          # Comparison logic
+          # Concatenate all keys without deduplication
           count=1
-          for key in "${!main_flags[@]}" "${!release_flags[@]}"; do
-            if [[ -z "${seen[$key]}" ]]; then
-              seen[$key]=1
-              release_value="${release_flags[$key]:-N/A}"
-              main_value="${main_flags[$key]:-N/A}"
+          for key in "${!release_flags[@]}"; do
+            release_value="${release_flags[$key]}"
+            main_value="${main_flags[$key]:-N/A}"
 
-              # Determine the status
-              if [[ "$release_value" == "$main_value" ]]; then
-                status="Unchanged ⚪"
-              elif [[ "$release_value" == "N/A" ]]; then
-                status="New 🔵"
-              elif [[ "$main_value" == "N/A" ]]; then
-                status="Removed 🔴"
-              else
-                status="Updated 🟡"
-              fi
+            # Determine the status
+            if [[ "$release_value" == "$main_value" ]]; then
+              status="Unchanged ⚪"
+            else
+              status="Updated 🟡"
+            fi
 
-              # Append to Markdown
+            # Append to Markdown
+            echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            ((count++))
+          done
+
+          # Include main branch keys that weren't in the release branch
+          for key in "${!main_flags[@]}"; do
+            if [[ -z "${release_flags[$key]}" ]]; then
+              release_value="N/A"
+              main_value="${main_flags[$key]}"
+
+              # Mark as New if it only exists in main branch
+              status="New 🔵"
               echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
               ((count++))
             fi
@@ -126,6 +132,7 @@ jobs:
           # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
+
 
       - name: Cleanup Temporary Files
         run: |

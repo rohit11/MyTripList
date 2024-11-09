@@ -18,6 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
       - name: Get Latest Release Branch
         id: get-latest-release
         run: |
@@ -84,6 +89,10 @@ jobs:
               ((count++))
             fi
           done
+
+      - name: Cleanup Temporary Files
+        run: |
+          rm -f main_flags.txt release_flags.txt
 
       - name: Commit and Push Changes
         run: |

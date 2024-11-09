@@ -26,7 +26,6 @@ jobs:
       - name: Get Latest Release Branch
         id: get-latest-release
         run: |
-          # Get the latest release branch matching "release/*"
           latest_release=$(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 1 | sed 's|origin/||')
           echo "branch=$latest_release" >> $GITHUB_OUTPUT
 
@@ -35,12 +34,16 @@ jobs:
         run: |
           git checkout ${{ steps.get-latest-release.outputs.branch }}
           grep -oP 'is\w+Enabled:\s*\"[A-Z_]+\"' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > release_flags.txt
+          echo "Release flags extracted:"
+          cat release_flags.txt
 
       - name: Extract Feature Flags from Main Branch
         id: extract-main-flags
         run: |
           git checkout main
           grep -oP 'is\w+Enabled:\s*\"[A-Z_]+\"' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > main_flags.txt
+          echo "Main branch flags extracted:"
+          cat main_flags.txt
 
       - name: Generate Comparison Markdown
         run: |
@@ -90,6 +93,10 @@ jobs:
             fi
           done
 
+          # Display the content of FEATURE_FLAGS.md for debugging
+          echo "Generated FEATURE_FLAGS.md content:"
+          cat ${{ env.FEATURE_FLAGS_DOC }}
+
       - name: Cleanup Temporary Files
         run: |
           rm -f main_flags.txt release_flags.txt
@@ -99,7 +106,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add ${{ env.FEATURE_FLAGS_DOC }}
-          git commit -m "Update feature flags documentation with comparison"
-          git push
+          git commit -m "Update feature flags documentation with comparison" || echo "Nothing to commit"
+          git push || echo "Nothing to push"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

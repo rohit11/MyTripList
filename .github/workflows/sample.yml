@@ -3,7 +3,7 @@ name: Update Feature Flags Documentation with Comparison
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 env:
@@ -60,7 +60,7 @@ jobs:
         id: read-main-flags
         run: |
           # Checkout the main branch and read FeatureFlagMapping content
-          git checkout main
+          git checkout master
           
           node -e "
             const fs = require('fs');

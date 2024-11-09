@@ -4,5 +4,6 @@ export const FeatureFlagMapping =  {
   isFeaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Enabled:
     "ENABLE_Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure_3",
     isFeaure4Enabled: "ENABLE_FEATURE_4",
-  
+    isFeaure5Enabled: "ENABLE_FEATURE_5",
+
 } as const;

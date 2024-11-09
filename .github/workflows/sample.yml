@@ -121,11 +121,13 @@ jobs:
           release_branch="${{ steps.get-latest-release.outputs.branch }}"
           if [ -n "$release_branch" ]; then
             echo "> **Comparison between \`main\` and \`$release_branch\`**" >> ${{ env.FEATURE_FLAGS_DOC }}
+            release_column="Release Value (\`$release_branch\`)"  # Dynamic column header with branch name
           else
             echo "> **No release branch found; only main branch feature flags are displayed.**" >> ${{ env.FEATURE_FLAGS_DOC }}
+            release_column="Release Value (latest release)"  # Fallback text if no release branch
           fi
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "| Count | Key | Release Value (latest release) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "| Count | Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
           echo "|-------|-----|-------------------------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
           # Concatenate all keys without deduplication
@@ -162,6 +164,7 @@ jobs:
           # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
+
 
       - name: Cleanup Temporary Files
         run: |

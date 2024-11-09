@@ -52,6 +52,12 @@ jobs:
             echo "main_extracted=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Print Extracted Main Branch Flags
+        if: steps.extract.outputs.main_extracted == 'true'
+        run: |
+          echo "Extracted Feature Flags from Main Branch:"
+          cat main_flags.txt
+
   # Step 2: Identify All Release Branches
   identify-release-branches:
     runs-on: ubuntu-latest
@@ -125,6 +131,12 @@ jobs:
             echo "latest_release_extracted=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Print Extracted Latest Release Branch Flags
+        if: steps.extract.outputs.latest_release_extracted == 'true'
+        run: |
+          echo "Extracted Feature Flags from Latest Release Branch:"
+          cat latest_release_flags.txt
+
   # Step 4: Extract Feature Flags from Previous Release Branch
   extract-previous-release:
     runs-on: ubuntu-latest
@@ -164,6 +176,12 @@ jobs:
             touch previous_release_flags.txt
             echo "previous_release_extracted=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Print Extracted Previous Release Branch Flags
+        if: steps.extract.outputs.previous_release_extracted == 'true'
+        run: |
+          echo "Extracted Feature Flags from Previous Release Branch:"
+          cat previous_release_flags.txt
 
   # Step 5: Generate Documentation
   generate-documentation:

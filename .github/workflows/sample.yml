@@ -163,6 +163,7 @@ jobs:
   generate-documentation:
     runs-on: ubuntu-latest
     needs: [extract-main, extract-latest-release, extract-previous-release]
+    if: needs.extract-latest-release.outputs.latest_release_extracted == 'true' || needs.extract-main.outputs.main_extracted == 'true'
     steps:
       - name: Checkout for Documentation Update
         uses: actions/checkout@v4

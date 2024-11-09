@@ -1,53 +1,131 @@
-name: Update Feature Flag Documentation
+name: Update Feature Flags Documentation with Comparison
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
   push:
     branches:
       - main
+  workflow_dispatch:
+
+env:
+  FEATURE_FLAGS_DOC: "doc/lagoonFeatureFlags/FEATURE_FLAGS.md"
+  FEATURE_FLAG_FILE: "src/contexts/featureFlags/FeatureFlagContext.tsx"
 
 jobs:
-  update_feature_flag_documentation:
+  update-doc:
     runs-on: ubuntu-latest
-    env:
-      FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
-      FEATURE_FLAG_FILE: "src/contexts/featureFlags/FeatureFlagContext.tsx"
-      TABLE_HEADER: "| Count | Feature Flag Name | Flag Key |\n|-------|-------------------|----------|"
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Generate FEATURE_FLAGS.md
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Get Latest Release Branch
+        id: get-latest-release
         run: |
-          # Initialize FEATURE_FLAGS.md with the table header
-          echo -e "$TABLE_HEADER" > "$FEATURE_FLAGS_DOC"
+          # Get the latest release branch matching "release/*"
+          latest_release=$(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 1 | sed 's|origin/||')
+          echo "Latest release branch: $latest_release"
+          echo "branch=$latest_release" >> $GITHUB_OUTPUT
 
-          # Use awk to read the FeatureFlagMapping block and extract key-value pairs
-          awk '
-            /export const FeatureFlagMapping = {/ { in_block = 1; next }
-            /} as const;/ { in_block = 0 }
-            in_block && /^[[:space:]]*[a-zA-Z0-9]+[[:space:]]*:/ {
-              # Match key-value pairs, allowing for spaces and newlines
-              if (match($0, /^[[:space:]]*([a-zA-Z0-9]+)[[:space:]]*:[[:space:]]*'\''([^'\'']+)'\''/, arr)) {
-                key = arr[1]
-                value = arr[2]
-                printf "| %d | %s | %s |\n", ++count, key, value
-              }
+      - name: Read Feature Flags from Latest Release Branch
+        id: read-release-flags
+        run: |
+          # Checkout the latest release branch and read FeatureFlagMapping content
+          git checkout ${{ steps.get-latest-release.outputs.branch }}
+          
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
+            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
+            const match = content.match(regex);
+
+            if (!match || !match[1]) {
+              console.error('FeatureFlagMapping object not found in release branch');
+              process.exit(1);
             }
-          ' "$FEATURE_FLAG_FILE" >> "$FEATURE_FLAGS_DOC"
 
-          # Show final content of FEATURE_FLAGS.md for debugging
-          echo "Updated FEATURE_FLAGS.md content:"
-          cat "$FEATURE_FLAGS_DOC"
+            const objectContent = '{' + match[1].trim() + '}';
+            const FeatureFlagMapping = eval('(' + objectContent + ')');
 
-      - name: Commit and Push Updated Documentation
+            // Ensure output is a string before writing to GITHUB_OUTPUT
+            const output = `flags=${JSON.stringify(FeatureFlagMapping)}\n`;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, output, { encoding: 'utf8' });
+          "
+
+      - name: Read Feature Flags from Main Branch
+        id: read-main-flags
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$FEATURE_FLAGS_DOC"
-          git commit -m "Update feature flag documentation [skip ci]" || echo "No changes to commit"
-          git push || echo "Nothing to push"
+          # Checkout the main branch and read FeatureFlagMapping content
+          git checkout main
+          
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
+            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
+            const match = content.match(regex);
+
+            if (!match || !match[1]) {
+              console.error('FeatureFlagMapping object not found in main branch');
+              process.exit(1);
+            }
+
+            const objectContent = '{' + match[1].trim() + '}';
+            const FeatureFlagMapping = eval('(' + objectContent + ')');
+
+            // Ensure output is a string before writing to GITHUB_OUTPUT
+            const output = `flags=${JSON.stringify(FeatureFlagMapping)}\n`;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, output, { encoding: 'utf8' });
+          "
+
+      - name: Generate Comparison Markdown
+        id: generate-markdown
+        run: |
+          const releaseFlags = JSON.parse('${{ steps.read-release-flags.outputs.flags }}');
+          const mainFlags = JSON.parse('${{ steps.read-main-flags.outputs.flags }}');
+          const releaseBranch = '${{ steps.get-latest-release.outputs.branch }}';
+
+          let markdownContent = `# Feature Flags Documentation\n\n`;
+          markdownContent += `> **Comparison between \`main\` and \`${releaseBranch}\`**\n\n`;
+          markdownContent += '| Count | Key         | Release Value (`' + releaseBranch + '`) | Main Value   | Status           |\n';
+          markdownContent += '|-------|-------------|-------------------------|--------------|------------------|\n';
+
+          let count = 1;
+          const allKeys = new Set([...Object.keys(releaseFlags), ...Object.keys(mainFlags)]);
+
+          for (const key of allKeys) {
+            const releaseValue = releaseFlags[key] !== undefined ? releaseFlags[key] : 'N/A';
+            const mainValue = mainFlags[key] !== undefined ? mainFlags[key] : 'N/A';
+
+            let status = 'Unchanged';
+            if (releaseValue === 'N/A') {
+              status = 'New 🔵';
+            } else if (mainValue === 'N/A') {
+              status = 'Removed 🔴';
+            } else if (releaseValue !== mainValue) {
+              status = 'Updated 🟡';
+            } else {
+              status = 'Unchanged ⚪';
+            }
+
+            markdownContent += `| ${count}     | ${key} | \`${releaseValue}\`      | \`${mainValue}\`     | **${status}** |\n`;
+            count++;
+          }
+
+          const outputPath = '${{ env.FEATURE_FLAGS_DOC }}';
+          require('fs').writeFileSync(outputPath, markdownContent, { encoding: 'utf8' });
+        env:
+          NODE_ENV: 'production'
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.FEATURE_FLAGS_DOC }}
+          git commit -m "Update feature flags documentation with comparison"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

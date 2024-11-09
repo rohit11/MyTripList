@@ -187,52 +187,7 @@ jobs:
                 updated_changes=()
                 deleted_changes=()
 
-                # Identify new, updated, and deleted flags
-                for key in "${!latest_flags[@]}"; do
-                  latest_value="${latest_flags[$key]}"
-                  previous_value="${previous_flags[$key]:-N/A}"
-
-                  if [[ "$previous_value" == "N/A" ]]; then
-                    new_changes+=("| $count | $key | \`$latest_value\` | New 🔵 |")
-                  elif [[ "$latest_value" != "$previous_value" ]]; then
-                    updated_changes+=("| $count | $key | \`$latest_value\` | Updated 🟡 |")
-                  fi
-                  ((count++))
-                done
-
-                # Identify deleted flags
-                for key in "${!previous_flags[@]}"; do
-                  if [[ -z "${latest_flags[$key]}" ]]; then
-                    deleted_changes+=("| $count | $key | N/A | Deleted 🔴 |")
-                    ((count++))
-                  fi
-                done
-
-                # Output New, Updated, and Deleted tables
-                if [ ${#new_changes[@]} -gt 0 ]; then
-                  echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "| Count | Key              | $latest_branch Value       | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "|-------|------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                fi
-
-                if [ ${#updated_changes[@]} -gt 0 ]; then
-                  echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "| Count | Key              | $latest_branch Value       | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "|-------|------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                fi
-
-                if [ ${#deleted_changes[@]} -gt 0 ]; then
-                  echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "| Count | Key              | $latest_branch Value       | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "|-------|------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                fi
-
+                
                 # Full Comparison Table
                 echo "### Full Feature Flags Comparison" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| Count | Key              | $latest_branch Value       | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}

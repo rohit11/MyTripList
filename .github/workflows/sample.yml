@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"               # Adjust the path if needed
-  FEATURE_FLAG_FILE: "FeatureFlags.tsx"                # Adjust the path if needed
+  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
+  FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:
   update-doc:
@@ -26,16 +26,23 @@ jobs:
       - name: Get Latest Release Branch
         id: get-latest-release
         run: |
-          # Get the latest release branch matching "release/*"
           latest_release=$(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 1 | sed 's|origin/||')
-          echo "Latest release branch: $latest_release"
           echo "branch=$latest_release" >> $GITHUB_OUTPUT
 
       - name: Read Feature Flags from Latest Release Branch
         id: read-release-flags
         run: |
           git checkout ${{ steps.get-latest-release.outputs.branch }}
-          node readFeatureFlags.js
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
+            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
+            const match = content.match(regex);
+            if (!match || !match[1]) { throw new Error('FeatureFlagMapping object not found'); }
+            const objectContent = '{' + match[1].trim() + '}';
+            const FeatureFlagMapping = eval('(' + objectContent + ')');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`flags=${JSON.stringify(FeatureFlagMapping)}\n\`);
+          "
         env:
           FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
           GITHUB_OUTPUT: $GITHUB_OUTPUT
@@ -44,7 +51,16 @@ jobs:
         id: read-main-flags
         run: |
           git checkout main
-          node readFeatureFlags.js
+          node -e "
+            const fs = require('fs');
+            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
+            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
+            const match = content.match(regex);
+            if (!match || !match[1]) { throw new Error('FeatureFlagMapping object not found'); }
+            const objectContent = '{' + match[1].trim() + '}';
+            const FeatureFlagMapping = eval('(' + objectContent + ')');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`flags=${JSON.stringify(FeatureFlagMapping)}\n\`);
+          "
         env:
           FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
           GITHUB_OUTPUT: $GITHUB_OUTPUT
@@ -52,41 +68,50 @@ jobs:
       - name: Generate Comparison Markdown
         id: generate-markdown
         run: |
-          const releaseFlags = JSON.parse('${{ steps.read-release-flags.outputs.flags }}');
-          const mainFlags = JSON.parse('${{ steps.read-main-flags.outputs.flags }}');
-          const releaseBranch = '${{ steps.get-latest-release.outputs.branch }}';
+          node -e "
+            const fs = require('fs');
 
-          let markdownContent = `# Feature Flags Documentation\n\n`;
-          markdownContent += `> **Comparison between \`main\` and \`${releaseBranch}\`**\n\n`;
-          markdownContent += '| Count | Key         | Release Value (`' + releaseBranch + '`) | Main Value   | Status           |\n';
-          markdownContent += '|-------|-------------|-------------------------|--------------|------------------|\n';
+            // Retrieve the JSON flags from environment variables
+            const releaseFlags = JSON.parse('${{ steps.read-release-flags.outputs.flags }}');
+            const mainFlags = JSON.parse('${{ steps.read-main-flags.outputs.flags }}');
+            const releaseBranch = '${{ steps.get-latest-release.outputs.branch }}';
 
-          let count = 1;
-          const allKeys = new Set([...Object.keys(releaseFlags), ...Object.keys(mainFlags)]);
+            let markdownContent = '# Feature Flags Documentation\\n\\n';
+            markdownContent += '> **Comparison between `main` and `' + releaseBranch + '`**\\n\\n';
+            markdownContent += '| Count | Key         | Release Value (`' + releaseBranch + '`) | Main Value   | Status           |\\n';
+            markdownContent += '|-------|-------------|-------------------------|--------------|------------------|\\n';
 
-          for (const key of allKeys) {
-            const releaseValue = releaseFlags[key] !== undefined ? releaseFlags[key] : 'N/A';
-            const mainValue = mainFlags[key] !== undefined ? mainFlags[key] : 'N/A';
+            let count = 1;
+            const allKeys = new Set([...Object.keys(releaseFlags), ...Object.keys(mainFlags)]);
 
-            let status = 'Unchanged';
-            if (releaseValue === 'N/A') {
-              status = 'New 🔵';
-            } else if (mainValue === 'N/A') {
-              status = 'Removed 🔴';
-            } else if (releaseValue !== mainValue) {
-              status = 'Updated 🟡';
-            } else {
-              status = 'Unchanged ⚪';
+            for (const key of allKeys) {
+              const releaseValue = releaseFlags[key] !== undefined ? releaseFlags[key] : 'N/A';
+              const mainValue = mainFlags[key] !== undefined ? mainFlags[key] : 'N/A';
+
+              let status = 'Unchanged';
+              if (releaseValue === 'N/A') {
+                status = 'New 🔵';
+              } else if (mainValue === 'N/A') {
+                status = 'Removed 🔴';
+              } else if (releaseValue !== mainValue) {
+                status = 'Updated 🟡';
+              } else {
+                status = 'Unchanged ⚪';
+              }
+
+              markdownContent += '| ' + count + '     | ' + key + ' | `' + releaseValue + '`      | `' + mainValue + '`     | **' + status + '** |\\n';
+              count++;
             }
 
-            markdownContent += `| ${count}     | ${key} | \`${releaseValue}\`      | \`${mainValue}\`     | **${status}** |\n`;
-            count++;
-          }
-
-          const outputPath = '${{ env.FEATURE_FLAGS_DOC }}';
-          require('fs').writeFileSync(outputPath, markdownContent, { encoding: 'utf8' });
+            // Write the markdown content to the specified output file
+            fs.writeFileSync('${{ env.FEATURE_FLAGS_DOC }}', markdownContent, { encoding: 'utf8' });
+            console.log('Comparison markdown generated successfully.');
+          "
         env:
-          NODE_ENV: 'production'
+          FEATURE_FLAGS_DOC: ${{ env.FEATURE_FLAGS_DOC }}
+          RELEASE_FLAGS: ${{ steps.read-release-flags.outputs.flags }}
+          MAIN_FLAGS: ${{ steps.read-main-flags.outputs.flags }}
+          RELEASE_BRANCH: ${{ steps.get-latest-release.outputs.branch }}
 
       - name: Commit and Push Changes
         run: |

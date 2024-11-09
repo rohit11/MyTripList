@@ -361,7 +361,7 @@ jobs:
             fi
           fi
 
-          compare_latest_to_previous_release latest_release_flags previous_release_flags "$latest_branch" "$previous_branch"
+          compare_latest_to_previous_release latest_release_flags main_flags "$latest_branch" "main"
 
           # Compare latest release with previous release if both are available
           #if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then

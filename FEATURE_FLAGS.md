@@ -32,3 +32,10 @@
 | Key              | Release Value (release/1.0.1) | Main Value      | Status     |
 |------------------|-------------------------------|-----------------|------------|
 
+## Full Feature Flags Comparison
+| Count | Key |  | Main Value | Status |
+|-------|-----|-----------------|------------|--------|
+| 1 | isFeaure1Enabled | `N/A` | `ENABLE_FEATURE_1` | **New 🔵** |
+| 2 | isFeaure4Enabled | `N/A` | `ENABLE_FEATURE_4` | **New 🔵** |
+| 3 | isFeaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Enabled | `N/A` | `ENABLE_Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure_3` | **New 🔵** |
+| 4 | isFeaure2Enabled | `N/A` | `ENABLE_FEATURE_2` | **New 🔵** |

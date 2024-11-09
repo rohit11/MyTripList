@@ -18,100 +18,72 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
       - name: Get Latest Release Branch
         id: get-latest-release
         run: |
+          # Get the latest release branch matching "release/*"
           latest_release=$(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 1 | sed 's|origin/||')
           echo "branch=$latest_release" >> $GITHUB_OUTPUT
 
-      - name: Read Feature Flags from Latest Release Branch
-        id: read-release-flags
+      - name: Extract Feature Flags from Latest Release Branch
+        id: extract-release-flags
         run: |
           git checkout ${{ steps.get-latest-release.outputs.branch }}
-          node -e "
-            const fs = require('fs');
-            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
-            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
-            const match = content.match(regex);
-            if (!match || !match[1]) { throw new Error('FeatureFlagMapping object not found'); }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`flags=${JSON.stringify(FeatureFlagMapping)}\n\`);
-          "
-        env:
-          FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
-          GITHUB_OUTPUT: $GITHUB_OUTPUT
+          grep -oP 'is\w+Enabled:\s*\"[A-Z_]+\"' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > release_flags.txt
 
-      - name: Read Feature Flags from Main Branch
-        id: read-main-flags
+      - name: Extract Feature Flags from Main Branch
+        id: extract-main-flags
         run: |
           git checkout main
-          node -e "
-            const fs = require('fs');
-            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
-            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
-            const match = content.match(regex);
-            if (!match || !match[1]) { throw new Error('FeatureFlagMapping object not found'); }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`flags=${JSON.stringify(FeatureFlagMapping)}\n\`);
-          "
-        env:
-          FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
-          GITHUB_OUTPUT: $GITHUB_OUTPUT
+          grep -oP 'is\w+Enabled:\s*\"[A-Z_]+\"' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > main_flags.txt
 
       - name: Generate Comparison Markdown
-        id: generate-markdown
         run: |
-          node -e "
-            const fs = require('fs');
+          # Read feature flags from extracted files
+          declare -A release_flags main_flags
+          
+          # Populate arrays with release branch flags
+          while IFS='=' read -r key value; do
+            release_flags["$key"]="$value"
+          done < release_flags.txt
 
-            // Retrieve the JSON flags from environment variables
-            const releaseFlags = JSON.parse('${{ steps.read-release-flags.outputs.flags }}');
-            const mainFlags = JSON.parse('${{ steps.read-main-flags.outputs.flags }}');
-            const releaseBranch = '${{ steps.get-latest-release.outputs.branch }}';
+          # Populate arrays with main branch flags
+          while IFS='=' read -r key value; do
+            main_flags["$key"]="$value"
+          done < main_flags.txt
 
-            let markdownContent = '# Feature Flags Documentation\\n\\n';
-            markdownContent += '> **Comparison between `main` and `' + releaseBranch + '`**\\n\\n';
-            markdownContent += '| Count | Key         | Release Value (`' + releaseBranch + '`) | Main Value   | Status           |\\n';
-            markdownContent += '|-------|-------------|-------------------------|--------------|------------------|\\n';
+          # Begin Markdown content
+          echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
+          echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "> **Comparison between \`main\` and \`${{ steps.get-latest-release.outputs.branch }}\`**" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "| Count | Key | Release Value (latest release) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "|-------|-----|-------------------------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-            let count = 1;
-            const allKeys = new Set([...Object.keys(releaseFlags), ...Object.keys(mainFlags)]);
+          # Comparison logic
+          count=1
+          for key in "${!main_flags[@]}" "${!release_flags[@]}"; do
+            if [[ -z "${seen[$key]}" ]]; then
+              seen[$key]=1
+              release_value="${release_flags[$key]:-N/A}"
+              main_value="${main_flags[$key]:-N/A}"
 
-            for (const key of allKeys) {
-              const releaseValue = releaseFlags[key] !== undefined ? releaseFlags[key] : 'N/A';
-              const mainValue = mainFlags[key] !== undefined ? mainFlags[key] : 'N/A';
+              # Determine the status
+              if [[ "$release_value" == "$main_value" ]]; then
+                status="Unchanged ⚪"
+              elif [[ "$release_value" == "N/A" ]]; then
+                status="New 🔵"
+              elif [[ "$main_value" == "N/A" ]]; then
+                status="Removed 🔴"
+              else
+                status="Updated 🟡"
+              fi
 
-              let status = 'Unchanged';
-              if (releaseValue === 'N/A') {
-                status = 'New 🔵';
-              } else if (mainValue === 'N/A') {
-                status = 'Removed 🔴';
-              } else if (releaseValue !== mainValue) {
-                status = 'Updated 🟡';
-              } else {
-                status = 'Unchanged ⚪';
-              }
-
-              markdownContent += '| ' + count + '     | ' + key + ' | `' + releaseValue + '`      | `' + mainValue + '`     | **' + status + '** |\\n';
-              count++;
-            }
-
-            // Write the markdown content to the specified output file
-            fs.writeFileSync('${{ env.FEATURE_FLAGS_DOC }}', markdownContent, { encoding: 'utf8' });
-            console.log('Comparison markdown generated successfully.');
-          "
-        env:
-          FEATURE_FLAGS_DOC: ${{ env.FEATURE_FLAGS_DOC }}
-          RELEASE_FLAGS: ${{ steps.read-release-flags.outputs.flags }}
-          MAIN_FLAGS: ${{ steps.read-main-flags.outputs.flags }}
-          RELEASE_BRANCH: ${{ steps.get-latest-release.outputs.branch }}
+              # Append to Markdown
+              echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              ((count++))
+            fi
+          done
 
       - name: Commit and Push Changes
         run: |

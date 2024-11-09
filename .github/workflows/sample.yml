@@ -8,7 +8,7 @@ on:
 
 env:
   FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
-  FEATURE_FLAG_FILE: "FeatureFlagContext.tsx"
+  FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:
   update-doc:

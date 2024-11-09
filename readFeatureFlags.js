@@ -1,7 +1,6 @@
 const fs = require('fs');
-const path = require('path');
 
-// Get the feature flag file path from environment variables
+// Get the feature flag file path and output file path from environment variables
 const featureFlagFile = process.env.FEATURE_FLAG_FILE;
 const outputFile = process.env.GITHUB_OUTPUT;
 

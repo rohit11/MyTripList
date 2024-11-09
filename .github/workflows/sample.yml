@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  FEATURE_FLAGS_DOC: "doc/lagoonFeatureFlags/FEATURE_FLAGS.md"
-  FEATURE_FLAG_FILE: "src/contexts/featureFlags/FeatureFlagContext.tsx"
+  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
+  FEATURE_FLAG_FILE: "FeatureFlagContext.tsx"
 
 jobs:
   update-doc:

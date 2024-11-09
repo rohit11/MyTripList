@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Get Latest Release Branch
+     - name: Get Latest Release Branch
         id: get-latest-release
         run: |
           # Get the latest release branch matching "release/*"

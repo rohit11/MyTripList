@@ -17,8 +17,6 @@ jobs:
   # Step 1: Extract Feature Flags from Main Branch
   extract-main:
     runs-on: ubuntu-latest
-    outputs:
-      main_extracted: ${{ steps.extract.outputs.main_extracted }}
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -45,18 +43,10 @@ jobs:
                 console.log(\`\${key}=\${value}\`);
               }
             " > main_flags.txt
-            echo "main_extracted=true" >> $GITHUB_OUTPUT
           else
-            echo "FeatureFlags.tsx not found in main branch; skipping."
+            echo "FeatureFlags.tsx not found in main branch; creating empty file."
             touch main_flags.txt
-            echo "main_extracted=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Print Extracted Main Branch Flags
-        if: steps.extract.outputs.main_extracted == 'true'
-        run: |
-          echo "Extracted Feature Flags from Main Branch:"
-          cat main_flags.txt
 
   # Step 2: Identify All Release Branches
   identify-release-branches:
@@ -95,17 +85,14 @@ jobs:
   extract-latest-release:
     runs-on: ubuntu-latest
     needs: identify-release-branches
-    if: needs.identify-release-branches.outputs.latest_branch
-    outputs:
-      latest_release_extracted: ${{ steps.extract.outputs.latest_release_extracted }}
     steps:
       - name: Checkout latest release branch
+        if: needs.identify-release-branches.outputs.latest_branch != ''
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.identify-release-branches.outputs.latest_branch }}
 
       - name: Extract Feature Flags from Latest Release Branch
-        id: extract
         run: |
           if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
             node -e "
@@ -124,34 +111,23 @@ jobs:
                 console.log(\`\${key}=\${value}\`);
               }
             " > latest_release_flags.txt
-            echo "latest_release_extracted=true" >> $GITHUB_OUTPUT
           else
-            echo "FeatureFlags.tsx not found in latest release branch; skipping."
+            echo "FeatureFlags.tsx not found in latest release branch; creating empty file."
             touch latest_release_flags.txt
-            echo "latest_release_extracted=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Print Extracted Latest Release Branch Flags
-        if: steps.extract.outputs.latest_release_extracted == 'true'
-        run: |
-          echo "Extracted Feature Flags from Latest Release Branch:"
-          cat latest_release_flags.txt
 
   # Step 4: Extract Feature Flags from Previous Release Branch
   extract-previous-release:
     runs-on: ubuntu-latest
     needs: identify-release-branches
-    if: needs.identify-release-branches.outputs.previous_branch
-    outputs:
-      previous_release_extracted: ${{ steps.extract.outputs.previous_release_extracted }}
     steps:
       - name: Checkout previous release branch
+        if: needs.identify-release-branches.outputs.previous_branch != ''
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.identify-release-branches.outputs.previous_branch }}
 
       - name: Extract Feature Flags from Previous Release Branch
-        id: extract
         run: |
           if [ -f "${{ env.FEATURE_FLAG_FILE }}" ]; then
             node -e "
@@ -170,18 +146,10 @@ jobs:
                 console.log(\`\${key}=\${value}\`);
               }
             " > previous_release_flags.txt
-            echo "previous_release_extracted=true" >> $GITHUB_OUTPUT
           else
-            echo "FeatureFlags.tsx not found in previous release branch; skipping."
+            echo "FeatureFlags.tsx not found in previous release branch; creating empty file."
             touch previous_release_flags.txt
-            echo "previous_release_extracted=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Print Extracted Previous Release Branch Flags
-        if: steps.extract.outputs.previous_release_extracted == 'true'
-        run: |
-          echo "Extracted Feature Flags from Previous Release Branch:"
-          cat previous_release_flags.txt
 
   # Step 5: Generate Documentation
   generate-documentation:
@@ -222,6 +190,9 @@ jobs:
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
           # Case 1: Compare Latest and Previous Release Branches
+          latest_branch="${{ needs.identify-release-branches.outputs.latest_branch }}"
+          previous_branch="${{ needs.identify-release-branches.outputs.previous_branch }}"
+
           if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
             echo "## Comparison Between Latest and Previous Release Branches" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "| Count | Key | Latest Value ($latest_branch) | Previous Value ($previous_branch) | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}

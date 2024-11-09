@@ -46,7 +46,22 @@ jobs:
         run: |
           if [ -n "${{ steps.get-latest-release.outputs.branch }}" ]; then
             git checkout ${{ steps.get-latest-release.outputs.branch }}
-            node extractFeatureFlags.js > release_flags.txt
+            node -e "
+              const fs = require('fs');
+              const path = require('path');
+              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+              if (!match || !match[1]) {
+                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                process.exit(1);
+              }
+              const objectContent = '{' + match[1].trim() + '}';
+              const FeatureFlagMapping = eval('(' + objectContent + ')');
+              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                console.log(\`\${key}=\${value}\`);
+              }
+            " > release_flags.txt
           else
             echo "No release branch available. Skipping release flag extraction."
             touch release_flags.txt  # Create an empty file for consistency
@@ -58,7 +73,22 @@ jobs:
         id: extract-main-flags
         run: |
           git checkout main
-          node extractFeatureFlags.js > main_flags.txt
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+            if (!match || !match[1]) {
+              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+              process.exit(1);
+            }
+            const objectContent = '{' + match[1].trim() + '}';
+            const FeatureFlagMapping = eval('(' + objectContent + ')');
+            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+              console.log(\`\${key}=\${value}\`);
+            }
+          " > main_flags.txt
           echo "Main branch flags extracted:"
           cat main_flags.txt || echo "No flags extracted from main branch"
 
@@ -132,7 +162,6 @@ jobs:
           # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
-
 
       - name: Cleanup Temporary Files
         run: |

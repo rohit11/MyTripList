@@ -94,18 +94,17 @@ jobs:
           " > main_flags.txt
           echo "Main branch flags extracted:"
           cat main_flags.txt || echo "No flags extracted from main branch"
-
       - name: Generate Comparison Markdown
         run: |
           # Initialize associative arrays for release and main flags
           declare -A release_flags main_flags
           
-          # Populate release branch flags
+          # Populate arrays with release branch flags
           while IFS='=' read -r key value; do
             release_flags["$key"]="$value"
           done < release_flags.txt
 
-          # Populate main branch flags
+          # Populate arrays with main branch flags
           while IFS='=' read -r key value; do
             main_flags["$key"]="$value"
           done < main_flags.txt
@@ -124,16 +123,6 @@ jobs:
           fi
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          # Add Current Release Branch Flags List
-          echo "## Current Release Branch Feature Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "| Key | $release_column |" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "|-----|-----------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-          for key in "${!release_flags[@]}"; do
-            release_value="${release_flags[$key]}"
-            echo "| $key | \`$release_value\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
-          done
-          echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-
           # Separate sections for New, Updated, Deleted flags
           echo "## Summary of Changes" >> ${{ env.FEATURE_FLAGS_DOC }}
 
@@ -148,16 +137,19 @@ jobs:
             main_value="${main_flags[$key]:-N/A}"
 
             if [[ "$main_value" == "N/A" ]]; then
+              # Key exists in release_flags but not in main_flags, so it's deleted
               deleted_changes+=("| $key | \`$release_value\` | N/A | **Deleted 🔴** |")
             elif [[ "$release_value" != "$main_value" ]]; then
+              # Key exists in both but values are different, so it's updated
               updated_changes+=("| $key | \`$release_value\` | \`$main_value\` | **Updated 🟡** |")
             fi
           done
 
-          # Process remaining keys in main_flags
+          # Process remaining keys in main_flags that weren't in release_flags
           for key in "${!main_flags[@]}"; do
             if [[ -z "${release_flags[$key]}" ]]; then
               main_value="${main_flags[$key]}"
+              # Key is new in main_flags, so it's added as New
               new_changes+=("| $key | N/A | \`$main_value\` | **New 🔵** |")
             fi
           done
@@ -192,4 +184,55 @@ jobs:
           echo "| Count | Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
           echo "|-------|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          declare -
+          # Track processed keys to avoid duplicates in full table
+          declare -A seen_keys
+          count=1
+
+          # Full table with release_flags first
+          for key in "${!release_flags[@]}"; do
+            release_value="${release_flags[$key]}"
+            main_value="${main_flags[$key]:-N/A}"
+            status=""
+
+            if [[ "$main_value" == "N/A" ]]; then
+              status="Deleted 🔴"
+            elif [[ "$release_value" != "$main_value" ]]; then
+              status="Updated 🟡"
+            else
+              status="Unchanged ⚪"
+            fi
+
+            echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            seen_keys["$key"]=1
+            ((count++))
+          done
+
+          # Append remaining keys from main_flags
+          for key in "${!main_flags[@]}"; do
+            if [[ -z "${seen_keys[$key]}" ]]; then
+              release_value="N/A"
+              main_value="${main_flags[$key]}"
+              status="New 🔵"
+
+              echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              ((count++))
+            fi
+          done
+
+          # Display the generated FEATURE_FLAGS.md for debugging
+          echo "Generated FEATURE_FLAGS.md content:"
+          cat ${{ env.FEATURE_FLAGS_DOC }}
+          
+      - name: Cleanup Temporary Files
+        run: |
+          rm -f main_flags.txt release_flags.txt
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.FEATURE_FLAGS_DOC }}
+          git commit -m "Update feature flags documentation with comparison" || echo "Nothing to commit"
+          git push || echo "Nothing to push"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

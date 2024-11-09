@@ -2,6 +2,14 @@
 
 > **Comparison between `main` and `  release/1.0.0`**
 
+## Current Release Branch Feature Flags
+| Key | Release Value (`  release/1.0.0`) |
+|-----|-----------------|
+| isFeaure1Enabled | `ENABLE_FEATURE_1` |
+| isFeaure3Enabled | `ENABLE_FEATURE_3` |
+| isFeaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Enabled | `ENABLE_Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure_3` |
+| isFeaure2Enabled | `ENABLE_FEATURE_2` |
+
 ## Summary of Changes
 ### New Flags
 | Key | Release Value (`  release/1.0.0`) | Main Value | Status |

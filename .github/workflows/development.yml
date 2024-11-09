@@ -214,6 +214,43 @@ jobs:
               printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
             fi
+
+            # Full Comparison Table
+            echo "### Full Feature Flags Comparison" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | Key | $source_name Value | $target_name Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|-----|--------------------|--------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+            declare -A seen_keys
+            count=1
+
+            for key in "${!source_flags[@]}"; do
+              source_value="${source_flags[$key]}"
+              target_value="${target_flags[$key]:-N/A}"
+              status=""
+
+              if [[ "$target_value" == "N/A" ]]; then
+                status="Deleted 🔴"
+              elif [[ "$source_value" != "$target_value" ]]; then
+                status="Updated 🟡"
+              else
+                status="Unchanged ⚪"
+              fi
+
+              echo "| $count | $key | \`$source_value\` | \`$target_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              seen_keys["$key"]=1
+              ((count++))
+            done
+
+            for key in "${!target_flags[@]}"; do
+              if [[ -z "${seen_keys[$key]}" ]]; then
+                source_value="N/A"
+                target_value="${target_flags[$key]}"
+                status="New 🔵"
+
+                echo "| $count | $key | \`$source_value\` | \`$target_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                ((count++))
+              fi
+            done
           }
 
           # Compare latest release with main

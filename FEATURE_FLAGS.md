@@ -21,3 +21,14 @@
 |------------------|-----------------------------------|------------|
 | isFeaure3Enabled | `ENABLE_FEATURE_3` | **Deleted 🔴** |
 
+## Comparison Between Latest Release and Main Branch
+### New Flags
+| Key              | Release Value (release/1.0.1) | Main Value      | Status     |
+|------------------|-------------------------------|-----------------|------------|
+### Updated Flags
+| Key              | Release Value (release/1.0.1) | Main Value      | Status     |
+|------------------|-------------------------------|-----------------|------------|
+### Deleted Flags
+| Key              | Release Value (release/1.0.1) | Main Value      | Status     |
+|------------------|-------------------------------|-----------------|------------|
+

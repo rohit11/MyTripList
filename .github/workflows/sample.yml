@@ -46,9 +46,7 @@ jobs:
         run: |
           if [ -n "${{ steps.get-latest-release.outputs.branch }}" ]; then
             git checkout ${{ steps.get-latest-release.outputs.branch }}
-            
-            # Refined grep pattern to capture feature flags within FeatureFlagMapping
-            grep -oP '(?<=is[A-Za-z0-9_]+Enabled:\s")[A-Z_]+(?=")' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > release_flags.txt
+            node extractFeatureFlags.js > release_flags.txt
           else
             echo "No release branch available. Skipping release flag extraction."
             touch release_flags.txt  # Create an empty file for consistency
@@ -60,10 +58,7 @@ jobs:
         id: extract-main-flags
         run: |
           git checkout main
-          
-          # Refined grep pattern to capture feature flags within FeatureFlagMapping
-          grep -oP '(?<=is[A-Za-z0-9_]+Enabled:\s")[A-Z_]+(?=")' ${{ env.FEATURE_FLAG_FILE }} | sed 's/: /=/' > main_flags.txt
-          
+          node extractFeatureFlags.js > main_flags.txt
           echo "Main branch flags extracted:"
           cat main_flags.txt || echo "No flags extracted from main branch"
 

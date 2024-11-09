@@ -208,7 +208,40 @@ jobs:
           fi
 
           # Comparison Between Latest Release and Main Branch
-          # [Insert similar code block for comparison with main branch here]
+          if [ -n "$latest_branch" ] && [ -s latest_release_flags.txt ] && [ -s main_flags.txt ]; then
+            echo "## Comparison Between Latest Release and Main Branch" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+            # New Flags
+            echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Key              | Release Value ($latest_branch) | Main Value      | Status     |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|------------------|-------------------------------|-----------------|------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            for key in "${!latest_release_flags[@]}"; do
+              if [[ -z "${main_flags[$key]}" ]]; then
+                echo "| $key | \`${latest_release_flags[$key]}\` | N/A | **New 🔵** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+            done
+
+            # Updated Flags
+            echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Key              | Release Value ($latest_branch) | Main Value      | Status     |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|------------------|-------------------------------|-----------------|------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            for key in "${!latest_release_flags[@]}"; do
+              if [[ -n "${main_flags[$key]}" && "${latest_release_flags[$key]}" != "${main_flags[$key]}" ]]; then
+                echo "| $key | \`${latest_release_flags[$key]}\` | \`${main_flags[$key]}\` | **Updated 🟡** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+            done
+
+            # Deleted Flags
+            echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Key              | Release Value ($latest_branch) | Main Value      | Status     |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|------------------|-------------------------------|-----------------|------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            for key in "${!main_flags[@]}"; do
+              if [[ -z "${latest_release_flags[$key]}" ]]; then
+                echo "| $key | N/A | \`${main_flags[$key]}\` | **Deleted 🔴** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+            done
+            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          fi
 
           # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"

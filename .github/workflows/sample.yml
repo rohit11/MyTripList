@@ -34,52 +34,20 @@ jobs:
       - name: Read Feature Flags from Latest Release Branch
         id: read-release-flags
         run: |
-          # Checkout the latest release branch and read FeatureFlagMapping content
           git checkout ${{ steps.get-latest-release.outputs.branch }}
-          
-          node -e "
-            const fs = require('fs');
-            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
-            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
-            const match = content.match(regex);
-
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in release branch');
-              process.exit(1);
-            }
-
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-
-            // Ensure output is a string before writing to GITHUB_OUTPUT
-            const output = `flags=${JSON.stringify(FeatureFlagMapping)}\n`;
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, output, { encoding: 'utf8' });
-          "
+          node readFeatureFlags.js
+        env:
+          FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
+          GITHUB_OUTPUT: $GITHUB_OUTPUT
 
       - name: Read Feature Flags from Main Branch
         id: read-main-flags
         run: |
-          # Checkout the main branch and read FeatureFlagMapping content
           git checkout main
-          
-          node -e "
-            const fs = require('fs');
-            const content = fs.readFileSync('${{ env.FEATURE_FLAG_FILE }}', 'utf8');
-            const regex = /export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/;
-            const match = content.match(regex);
-
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in main branch');
-              process.exit(1);
-            }
-
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-
-            // Ensure output is a string before writing to GITHUB_OUTPUT
-            const output = `flags=${JSON.stringify(FeatureFlagMapping)}\n`;
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, output, { encoding: 'utf8' });
-          "
+          node readFeatureFlags.js
+        env:
+          FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}
+          GITHUB_OUTPUT: $GITHUB_OUTPUT
 
       - name: Generate Comparison Markdown
         id: generate-markdown

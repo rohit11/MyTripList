@@ -43,7 +43,7 @@ jobs:
       - name: Read Feature Flags from Main Branch
         id: read-main-flags
         run: |
-          git checkout main
+          git checkout master
           node readFeatureFlags.js
         env:
           FEATURE_FLAG_FILE: ${{ env.FEATURE_FLAG_FILE }}

@@ -238,17 +238,79 @@ jobs:
             echo "| Key | Latest Release Value (\`$latest_branch\`) | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
             echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
+            # Track New, Updated, Deleted flags for a summary section
+            new_flags=()
+            updated_flags=()
+            deleted_flags=()
+
+            # Compare flags in latest release vs. main
             for key in "${!latest_release_flags[@]}"; do
               latest_value="${latest_release_flags[$key]}"
               main_value="${main_flags[$key]:-N/A}"
               if [[ "$main_value" == "N/A" ]]; then
-                status="Deleted 🔴"
+                new_flags+=("| $key | \`$latest_value\` | N/A | **New 🔵** |")
+              elif [[ "$latest_value" != "$main_value" ]]; then
+                updated_flags+=("| $key | \`$latest_value\` | \`$main_value\` | **Updated 🟡** |")
+              fi
+            done
+
+            # Add deleted flags
+            for key in "${!main_flags[@]}"; do
+              if [[ -z "${latest_release_flags[$key]}" ]]; then
+                deleted_flags+=("| $key | N/A | \`${main_flags[$key]}\` | **Deleted 🔴** |")
+              fi
+            done
+
+            # Output Summary of Changes
+            if [ ${#new_flags[@]} -gt 0 ]; then
+              echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Key | $latest_branch Value | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              printf "%s\n" "${new_flags[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+            fi
+
+            if [ ${#updated_flags[@]} -gt 0 ]; then
+              echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Key | $latest_branch Value | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              printf "%s\n" "${updated_flags[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+            fi
+
+            if [ ${#deleted_flags[@]} -gt 0 ]; then
+              echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Key | $latest_branch Value | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              printf "%s\n" "${deleted_flags[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+            fi
+
+            # Full Comparison Table for all flags
+            echo "## Full Feature Flags Comparison with Main Branch" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Key | $latest_branch Value | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+            for key in "${!latest_release_flags[@]}"; do
+              latest_value="${latest_release_flags[$key]}"
+              main_value="${main_flags[$key]:-N/A}"
+              status=""
+
+              if [[ "$main_value" == "N/A" ]]; then
+                status="New 🔵"
               elif [[ "$latest_value" != "$main_value" ]]; then
                 status="Updated 🟡"
               else
                 status="Unchanged ⚪"
               fi
-              echo "| $key | \`$latest_value\` | \`$main_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+              echo "| $key | \`$latest_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            done
+
+            for key in "${!main_flags[@]}"; do
+              if [[ -z "${latest_release_flags[$key]}" ]]; then
+                echo "| $key | N/A | \`${main_flags[$key]}\` | **Deleted 🔴** |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
             done
           fi
 

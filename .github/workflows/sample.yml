@@ -60,7 +60,7 @@ jobs:
         id: read-main-flags
         run: |
           # Checkout the main branch and read FeatureFlagMapping content
-          git checkout master
+          git checkout main
           
           node -e "
             const fs = require('fs');

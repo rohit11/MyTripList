@@ -314,7 +314,7 @@ jobs:
           cd wiki
           git add Feature-Flags.md
           git commit -m "Update Feature Flags documentation"
-          git push origin main
+          git push origin master
 
       - name: Clean up
         run: rm -rf wiki     

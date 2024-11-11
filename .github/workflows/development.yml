@@ -10,7 +10,7 @@ on:
   workflow_dispatch:  # Allow manual triggering of the workflow
 
 env:
-  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
+  FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:

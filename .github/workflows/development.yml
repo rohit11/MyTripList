@@ -159,121 +159,132 @@ jobs:
           latest_branch="${{ steps.get-latest-release.outputs.latest_branch }}"
           previous_branch="${{ steps.get-latest-release.outputs.previous_branch }}"
 
-          # Function to print and compare feature flags between latest and previous release
-            compare_branches() {
-                local -n latest_flags=$1
-                local -n previous_flags=$2
-                local latest_branch=$3
-                local previous_branch=$4
+           # Function to print standalone feature flags for each branch
+          print_standalone_flags() {
+              local -n flags=$1
+              local branch_name=$2
 
-                # Display only the feature flags for the latest branch
-                echo "## Feature Flags in \`$latest_branch\`" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| Count | Key              | $latest_branch Value       |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|-------|------------------|---------------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "## Feature Flags in \`$branch_name\`" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Count | $branch_name Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-------|---------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-                count=1
-                for key in "${!latest_flags[@]}"; do
-                  echo "| $count | $key | \`${latest_flags[$key]}\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  ((count++))
-                done
-                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              count=1
+              for key in "${!flags[@]}"; do
+                echo "| $count | \`${flags[$key]}\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                ((count++))
+              done
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          }
 
-                # If previous release branch is available, proceed with comparison
-                if [ -n "$previous_branch" ]; then
-                  echo "## Comparison between \`$latest_branch\` and \`$previous_branch\`" >> ${{ env.FEATURE_FLAGS_DOC }}
+          
 
-                  new_changes=()
-                  updated_changes=()
-                  deleted_changes=()
+          # Function to create summary table with New, Updated, and Deleted flags
+          generate_summary_table() {
+              local -n latest_flags=$1
+              local -n previous_flags=$2
+              local latest_branch=$3
+              local previous_branch=$4
+              local section_title=$5
 
-                  # Identify new, updated, and deleted flags
-                  for key in "${!latest_flags[@]}"; do
-                    latest_value="${latest_flags[$key]}"
-                    previous_value="${previous_flags[$key]:-N/A}"
+              echo "## $section_title (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-                    if [[ "$previous_value" == "N/A" ]]; then
-                      new_changes+=("| $key | \`$latest_value\` | N/A | New 🔵 |")
-                    elif [[ "$latest_value" != "$previous_value" ]]; then
-                      updated_changes+=("| $key | \`$latest_value\` | \`$previous_value\` | Updated 🟡 |")
-                    fi
-                  done
+              new_changes=()
+              updated_changes=()
+              deleted_changes=()
 
-                  # Identify deleted flags
-                  for key in "${!previous_flags[@]}"; do
-                    if [[ -z "${latest_flags[$key]}" ]]; then
-                      deleted_changes+=("| $key | N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |")
-                    fi
-                  done
+              # Identify new, updated, and deleted flags
+              for key in "${!latest_flags[@]}"; do
+                latest_value="${latest_flags[$key]}"
+                previous_value="${previous_flags[$key]:-N/A}"
 
-                  # Output New, Updated, and Deleted tables
-                  if [ ${#new_changes[@]} -gt 0 ]; then
-                    echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "| Count | Key              | $latest_branch Value       | $previous_branch Value    | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "|-------|------------------|---------------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    count=1
-                    for change in "${new_changes[@]}"; do
-                      echo "| $count $change" >> ${{ env.FEATURE_FLAGS_DOC }}
-                      ((count++))
-                    done
-                    echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  fi
-
-                  if [ ${#updated_changes[@]} -gt 0 ]; then
-                    echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "| Count | Key              | $latest_branch Value       | $previous_branch Value    | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "|-------|------------------|---------------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    count=1
-                    for change in "${updated_changes[@]}"; do
-                      echo "| $count $change" >> ${{ env.FEATURE_FLAGS_DOC }}
-                      ((count++))
-                    done
-                    echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  fi
-
-                  if [ ${#deleted_changes[@]} -gt 0 ]; then
-                    echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "| Count | Key              | $latest_branch Value       | $previous_branch Value    | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    echo "|-------|------------------|---------------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    count=1
-                    for change in "${deleted_changes[@]}"; do
-                      echo "| $count $change" >> ${{ env.FEATURE_FLAGS_DOC }}
-                      ((count++))
-                    done
-                    echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  fi
-
-                  # Full Comparison Table
-                  echo "### Full Feature Flags Comparison" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "| Count | Key              | $latest_branch Value       | $previous_branch Value    | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                  echo "|-------|------------------|---------------------------|---------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-                  count=1
-                  for change in "${new_changes[@]}" "${updated_changes[@]}" "${deleted_changes[@]}"; do
-                    echo "| $count $change" >> ${{ env.FEATURE_FLAGS_DOC }}
-                    ((count++))
-                  done
-
-                  # Append unchanged flags at the end of the full comparison table
-                  for key in "${!latest_flags[@]}"; do
-                    if [[ "${previous_flags[$key]:-N/A}" == "${latest_flags[$key]}" ]]; then
-                      echo "| $count | $key | \`${latest_flags[$key]}\` | \`${previous_flags[$key]}\` | Unchanged ⚪ |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                      ((count++))
-                    fi
-                  done
+                if [[ "$previous_value" == "N/A" ]]; then
+                  new_changes+=("| \`$latest_value\` | N/A | New 🔵 |")
+                elif [[ "$latest_value" != "$previous_value" ]]; then
+                  updated_changes+=("| \`$latest_value\` | \`$previous_value\` | Updated 🟡 |")
                 fi
-            }
+              done
 
-          # Call the function with latest and previous release flags
+              for key in "${!previous_flags[@]}"; do
+                if [[ -z "${latest_flags[$key]}" ]]; then
+                  deleted_changes+=("| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |")
+                fi
+              done
+
+              # Output New, Updated, and Deleted tables
+              if [ ${#new_changes[@]} -gt 0 ]; then
+                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+
+              if [ ${#updated_changes[@]} -gt 0 ]; then
+                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+
+              if [ ${#deleted_changes[@]} -gt 0 ]; then
+                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+          }
+
+          # Function to create full comparison table
+          generate_full_comparison_table() {
+              local -n latest_flags=$1
+              local -n previous_flags=$2
+              local latest_branch=$3
+              local previous_branch=$4
+              local section_title=$5
+
+              echo "### $section_title (Full Comparison)" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+              for key in "${!latest_flags[@]}"; do
+                latest_value="${latest_flags[$key]}"
+                previous_value="${previous_flags[$key]:-N/A}"
+                status=""
+
+                if [[ "$previous_value" == "N/A" ]]; then
+                  status="New 🔵"
+                elif [[ "$latest_value" != "$previous_value" ]]; then
+                  status="Updated 🟡"
+                else
+                  status="Unchanged ⚪"
+                fi
+
+                echo "| \`$latest_value\` | \`$previous_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              done
+
+              for key in "${!previous_flags[@]}"; do
+                if [[ -z "${latest_flags[$key]}" ]]; then
+                  echo "| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                fi
+              done
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          }
+
+          # Generate summary and full comparison tables in requested order
           if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
-            compare_branches latest_release_flags previous_release_flags "$latest_branch" "$previous_branch"
-          else
-            echo "No previous release available for comparison."
-            if [ -n "$latest_branch" ]; then
-             compare_branches latest_release_flags previous_release_flags "$latest_branch" "$previous_branch"
-            fi
+            generate_summary_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Comparison: $latest_branch vs. $previous_branch"
+            generate_summary_table main_flags latest_release_flags "main" "$latest_branch" "Comparison: main vs. $latest_branch"
+            print_standalone_flags latest_release_flags "$latest_branch"
+            generate_full_comparison_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Full Comparison: $latest_branch vs. $previous_branch"
+            print_standalone_flags main_flags "main"
+            generate_full_comparison_table main_flags latest_release_flags "main" "$latest_branch" "Full Comparison: main vs. $latest_branch"
           fi
+          
+         
 
-          compare_branches main_flags latest_release_flags "main" "$latest_branch"
+          
  
 
           echo "Generated FEATURE_FLAGS.md content:"

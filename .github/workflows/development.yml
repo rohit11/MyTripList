@@ -292,3 +292,17 @@ jobs:
           git push || echo "Nothing to push"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clone the Wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rohit11/MyTripList.wiki.git wiki
+
+      - name: Update Feature Flags page
+        run: |
+          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md  # Copy the updated content to the Wiki
+          cd wiki
+          git add Feature-Flags.md
+          git commit -m "Update Feature Flags documentation"
+          git push origin main
+
+      - name: Clean up
+        run: rm -rf wiki     

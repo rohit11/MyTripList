@@ -292,6 +292,12 @@ jobs:
           git push || echo "Nothing to push"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
       - name: Clone the Wiki
         run: |
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rohit11/MyTripList.wiki.git wiki

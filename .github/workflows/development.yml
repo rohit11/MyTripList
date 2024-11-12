@@ -34,33 +34,35 @@ jobs:
           echo "Listing all remote branches:"
           git branch -r
           
-          # Find all branches in the format 'release/{x.x.x}'
-          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
+          # Find all branches in the format 'release/v{x.x.x}'
+          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/v[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
 
           # Sort branches by semantic versioning
           sorted_branches=($(for branch in "${release_branches[@]}"; do
             echo "$branch"
           done | sort -V))
 
-          # Identify the latest and previous release branches
-          latest_release="${sorted_branches[-1]}"
-          previous_release="${sorted_branches[-2]}"
-
-          if [ -z "$latest_release" ]; then
-            echo "No release branch found matching 'release/{x.x.x}' format."
+          # Check if we have at least one release branch
+          if [ ${#sorted_branches[@]} -eq 0 ]; then
+            echo "No valid release branches found."
             echo "latest_branch=" >> $GITHUB_OUTPUT
-          else
-            echo "Latest release branch found: $latest_release"
+            echo "previous_branch=" >> $GITHUB_OUTPUT
+          elif [ ${#sorted_branches[@]} -eq 1 ]; then
+            # Only one release branch is available
+            latest_release="${sorted_branches[0]}"
+            echo "Only one release branch found: $latest_release"
             echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
-          fi
-
-          if [ -z "$previous_release" ]; then
-            echo "No previous release branch found."
             echo "previous_branch=" >> $GITHUB_OUTPUT
           else
+            # At least two release branches are available
+            latest_release="${sorted_branches[-1]}"
+            previous_release="${sorted_branches[-2]}"
+            echo "Latest release branch found: $latest_release"
+            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
             echo "Previous release branch found: $previous_release"
             echo "previous_branch=$previous_release" >> $GITHUB_OUTPUT
           fi
+
 
       - name: Extract Feature Flags from Latest Release Branch (if available)
         id: extract-latest-release-flags

@@ -218,8 +218,6 @@ jobs:
                 printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
                 echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
 
@@ -230,8 +228,6 @@ jobs:
                 printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
                 echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
 
@@ -242,8 +238,6 @@ jobs:
                 printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
                 echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
           }

@@ -210,13 +210,17 @@ jobs:
                 fi
               done
 
-              # Output New, Updated, and Deleted tables
+              # Output New, Updated, and Deleted tables with a message if no differences
               if [ ${#new_changes[@]} -gt 0 ]; then
                 echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
 
               if [ ${#updated_changes[@]} -gt 0 ]; then
@@ -224,7 +228,11 @@ jobs:
                 echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
 
               if [ ${#deleted_changes[@]} -gt 0 ]; then
@@ -232,7 +240,11 @@ jobs:
                 echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
           }
 

@@ -6,13 +6,27 @@
 |----------------------|------------------------|--------|
 | `ENABLE_FEATURE_5` | N/A | New 🔵 |
 | `ENABLE_FEATURE_4` | N/A | New 🔵 |
-
+### Updated Flags
+| release/1.0.1 Value | release/1.0.0 Value | Status |
+|----------------------|------------------------|--------|
+| No differences found |
 ### Deleted Flags
 | release/1.0.1 Value | release/1.0.0 Value | Status |
 |----------------------|------------------------|--------|
 | N/A | `ENABLE_FEATURE_3` | Deleted 🔴 |
-
 ## Comparison: main vs. release/1.0.1 (New, Updated, Deleted Flags)
+### New Flags
+| main Value | release/1.0.1 Value | Status |
+|----------------------|------------------------|--------|
+| No differences found |
+### Updated Flags
+| main Value | release/1.0.1 Value | Status |
+|----------------------|------------------------|--------|
+| No differences found |
+### Deleted Flags
+| main Value | release/1.0.1 Value | Status |
+|----------------------|------------------------|--------|
+| No differences found |
 ## Feature Flags in `release/1.0.1`
 | Count | release/1.0.1 Value |
 |-------|---------------------|

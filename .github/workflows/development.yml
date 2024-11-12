@@ -34,13 +34,20 @@ jobs:
           echo "Listing all remote branches:"
           git branch -r
           
-          # Find the two most recent release branches
-          release_branches=($(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 2 | sed 's|origin/||'))
-          latest_release=${release_branches[0]}
-          previous_release=${release_branches[1]}
-          
+          # Find all branches in the format 'release/{x.x.x}'
+          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
+
+          # Sort branches by semantic versioning
+          sorted_branches=($(for branch in "${release_branches[@]}"; do
+            echo "$branch"
+          done | sort -V))
+
+          # Identify the latest and previous release branches
+          latest_release="${sorted_branches[-1]}"
+          previous_release="${sorted_branches[-2]}"
+
           if [ -z "$latest_release" ]; then
-            echo "No release branch found matching 'release/*'"
+            echo "No release branch found matching 'release/{x.x.x}' format."
             echo "latest_branch=" >> $GITHUB_OUTPUT
           else
             echo "Latest release branch found: $latest_release"

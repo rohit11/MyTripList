@@ -1,0 +1,192 @@
+name: Develop Update Feature Flags Documentation
+
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 6:00 AM PST
+    - cron: '0 2 * * *'   # 6:00 PM PST
+  push:
+    paths:
+      - 'FeatureFlags.tsx'  # Trigger workflow only if FeatureFlags.tsx is modified
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
+env:
+  FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
+  FEATURE_FLAG_FILE: "FeatureFlags.tsx"
+
+jobs:
+  update-doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all branches to ensure release branches are available
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: List All Branches and Get Latest Release Branches
+        id: get-latest-release
+        run: |
+          echo "Listing all remote branches:"
+          git branch -r
+          
+          # Find all branches in the format 'release/v{x.x.x}'
+          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/v[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
+
+          # Sort branches by semantic versioning
+          sorted_branches=($(for branch in "${release_branches[@]}"; do
+            echo "$branch"
+          done | sort -V))
+
+          # Check if we have at least one release branch
+          if [ ${#sorted_branches[@]} -eq 0 ]; then
+            echo "No valid release branches found."
+            echo "latest_branch=" >> $GITHUB_OUTPUT
+            echo "previous_branch=" >> $GITHUB_OUTPUT
+          elif [ ${#sorted_branches[@]} -eq 1 ]; then
+            # Only one release branch is available
+            latest_release="${sorted_branches[0]}"
+            echo "Only one release branch found: $latest_release"
+            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
+            echo "previous_branch=" >> $GITHUB_OUTPUT
+          else
+            # At least two release branches are available
+            latest_release="${sorted_branches[-1]}"
+            previous_release="${sorted_branches[-2]}"
+            echo "Latest release branch found: $latest_release"
+            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
+            echo "Previous release branch found: $previous_release"
+            echo "previous_branch=$previous_release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Feature Flags from Branches
+        id: extract-flags
+        run: |
+          extract_flags() {
+            branch=$1
+            output_file=$2
+
+            if [ -n "$branch" ]; then
+              git checkout $branch
+              node -e "
+                const fs = require('fs');
+                const path = require('path');
+                const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+                const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+                const match = content.match(/(export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}|export enum FeatureFlag {([\\s\\S]+?)})/);
+                
+                if (!match) {
+                  console.error('FeatureFlagMapping or FeatureFlag enum not found in FeatureFlags.tsx');
+                  process.exit(1);
+                }
+                
+                const flagText = match[2] || match[3];
+                const flags = flagText.match(/'([^']+)'/g).map(flag => flag.replace(/'/g, ''));
+                flags.forEach(flag => console.log(flag));
+              " > $output_file
+            else
+              touch $output_file
+            fi
+          }
+
+          extract_flags "${{ steps.get-latest-release.outputs.latest_branch }}" latest_release_flags.txt
+          extract_flags "${{ steps.get-latest-release.outputs.previous_branch }}" previous_release_flags.txt
+          extract_flags "main" main_flags.txt
+
+          echo "Flags extracted for each branch"
+
+      - name: Generate Comparison Markdown
+        run: |
+          # Read flags into arrays
+          latest_release_flags=($(cat latest_release_flags.txt))
+          previous_release_flags=($(cat previous_release_flags.txt))
+          main_flags=($(cat main_flags.txt))
+
+          # Define function to generate Markdown tables
+          generate_section() {
+            echo "## $1" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Status | Flag |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|--------|------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+          }
+
+          generate_summary_table() {
+              local -a latest_flags=("${!1}")
+              local -a previous_flags=("${!2}")
+              local latest_branch=$3
+              local previous_branch=$4
+              local section_title=$5
+
+              echo "## $section_title (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+              new_flags=()
+              updated_flags=()
+              deleted_flags=()
+
+              # Identify new, updated, and deleted flags
+              for flag in "${latest_flags[@]}"; do
+                if [[ ! " ${previous_flags[@]} " =~ " ${flag} " ]]; then
+                  new_flags+=("| New 🔵 | \`${flag}\` |")
+                fi
+              done
+
+              for flag in "${previous_flags[@]}"; do
+                if [[ ! " ${latest_flags[@]} " =~ " ${flag} " ]]; then
+                  deleted_flags+=("| Deleted 🔴 | \`${flag}\` |")
+                fi
+              done
+
+              # Output New, Updated, and Deleted tables with a message if no differences
+              if [ ${#new_flags[@]} -gt 0 ]; then
+                generate_section "New Flags"
+                printf "%s\n" "${new_flags[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+
+              if [ ${#deleted_flags[@]} -gt 0 ]; then
+                generate_section "Deleted Flags"
+                printf "%s\n" "${deleted_flags[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+          }
+
+          # Generate summary and full comparison tables in requested order
+          if [ -n "${{ steps.get-latest-release.outputs.latest_branch }}" ] && [ -n "${{ steps.get-latest-release.outputs.previous_branch }}" ]; then
+            generate_summary_table latest_release_flags[@] previous_release_flags[@] "Latest" "Previous" "Latest vs. Previous Comparison"
+            generate_summary_table main_flags[@] latest_release_flags[@] "Main" "Latest" "Main vs. Latest Comparison"
+          fi
+
+          echo "Generated FEATURE_FLAGS.md content:"
+          cat ${{ env.FEATURE_FLAGS_DOC }}
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.FEATURE_FLAGS_DOC }}
+          git commit -m "Update feature flags documentation with comparison" || echo "Nothing to commit"
+          git push || echo "Nothing to push"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clone the Wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rohit11/MyTripList.wiki.git wiki
+
+      - name: Update Feature Flags page
+        run: |
+          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md  # Copy the updated content to the Wiki
+          cd wiki
+          git add Feature-Flags.md
+          git commit -m "Update Feature Flags documentation"
+          git push origin master
+
+      - name: Clean up
+        run: rm -rf wiki

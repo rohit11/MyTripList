@@ -1,25 +1,17 @@
 # Feature Flags Documentation
 
 ## New Values in release/1.0.1 (Compared to release/1.0.0)
-| Count | release/1.0.1 Value | release/1.0.0 Value | Status |
-|-------|------------------------|------------------------|--------|
-| 1 | `ENABLE_FEATURE_4` | N/A | New 🔵 |
-| 2 | `ENABLE_FEATURE_5` | N/A | New 🔵 |
+- `ENABLE_FEATURE_4` (Status: New 🔵, release/1.0.0: N/A)
+- `ENABLE_FEATURE_5` (Status: New 🔵, release/1.0.0: N/A)
 
 ## Deleted Values in release/1.0.0 (Compared to release/1.0.1)
-| Count | release/1.0.0 Value | release/1.0.1 Value | Status |
-|-------|------------------------|------------------------|--------|
-| 1 | `ENABLE_FEATURE_3` | N/A | Deleted 🔴 |
+- `ENABLE_FEATURE_3` (Status: Deleted 🔴, release/1.0.1: N/A)
 
 ## New Values in release/1.0.1 (Compared to main)
-| Count | release/1.0.1 Value | main Value | Status |
-|-------|------------------------|------------------------|--------|
-| No new values found | N/A | |
+- No new values found
 
 ## Deleted Values in main (Compared to release/1.0.1)
-| Count | main Value | release/1.0.1 Value | Status |
-|-------|------------------------|------------------------|--------|
-| No deleted values found | N/A | |
+- No deleted values found
 
 ## Feature Flags in `release/1.0.1`
 | Count | release/1.0.1 Value |

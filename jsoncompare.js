@@ -13,18 +13,47 @@ async function fetchJson(url) {
     }
 }
 
+// Function to remove ignored keys from the JSON data
+function removeIgnoredKeys(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(item => removeIgnoredKeys(item));
+    } else if (obj && typeof obj === 'object') {
+        const newObj = {};
+        for (const key in obj) {
+            if (key !== 'id' && key !== 'lagoon.updatedAt' && key !== 'lagoon.updatedBy') {
+                newObj[key] = removeIgnoredKeys(obj[key]);
+            }
+        }
+        return newObj;
+    }
+    return obj;
+}
+
 // Function to categorize differences and add color
 function categorizeDifferences(oldData, newData) {
     const differences = diff(oldData, newData);
-    const categorized = { new: [], updated: [], deleted: [] };
+    const categorized = {};
+
+    if (!differences) return categorized;
 
     differences.forEach((change) => {
+        // Skip changes within the 'smartling' parent key
+        if (change.path && change.path[0] === 'smartling') {
+            return;
+        }
+
+        const parentKey = change.path ? change.path[0] : 'root';
+
+        if (!categorized[parentKey]) {
+            categorized[parentKey] = { new: [], updated: [], deleted: [] };
+        }
+
         if (change.kind === 'N') {
-            categorized.new.push(change);
+            categorized[parentKey].new.push(change);
         } else if (change.kind === 'E') {
-            categorized.updated.push(change);
+            categorized[parentKey].updated.push(change);
         } else if (change.kind === 'D') {
-            categorized.deleted.push(change);
+            categorized[parentKey].deleted.push(change);
         }
     });
 
@@ -32,7 +61,7 @@ function categorizeDifferences(oldData, newData) {
 }
 
 // Function to export differences to an Excel file
-async function exportToExcel(differences, outputPath) {
+async function exportToExcel(categorizedDifferences, outputPath) {
     const workbook = new ExcelJS.Workbook();
 
     // Define color styles
@@ -42,8 +71,8 @@ async function exportToExcel(differences, outputPath) {
         deleted: { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } } } // Red
     };
 
-    for (const [key, changes] of Object.entries(differences)) {
-        const sheet = workbook.addWorksheet(key.charAt(0).toUpperCase() + key.slice(1));
+    for (const [parentKey, changes] of Object.entries(categorizedDifferences)) {
+        const sheet = workbook.addWorksheet(parentKey);
 
         // Add headers
         sheet.columns = [
@@ -53,17 +82,17 @@ async function exportToExcel(differences, outputPath) {
         ];
 
         // Add rows based on the type of change
-        changes.forEach(change => {
-            const row = {
-                path: change.path ? change.path.join('.') : '',
-                oldValue: change.lhs !== undefined ? JSON.stringify(change.lhs) : '',
-                newValue: change.rhs !== undefined ? JSON.stringify(change.rhs) : ''
-            };
-            const addedRow = sheet.addRow(row);
-            addedRow.eachCell(cell => {
-                if (key === 'new') cell.style = styles.new;
-                else if (key === 'updated') cell.style = styles.updated;
-                else if (key === 'deleted') cell.style = styles.deleted;
+        ['new', 'updated', 'deleted'].forEach(type => {
+            changes[type].forEach(change => {
+                const row = {
+                    path: change.path ? change.path.slice(1).join('.') : '',
+                    oldValue: change.lhs !== undefined ? JSON.stringify(change.lhs) : '',
+                    newValue: change.rhs !== undefined ? JSON.stringify(change.rhs) : ''
+                };
+                const addedRow = sheet.addRow(row);
+                addedRow.eachCell(cell => {
+                    cell.style = styles[type];
+                });
             });
         });
     }
@@ -80,14 +109,18 @@ async function main() {
     const outputPath = 'json_differences.xlsx';
 
     // Fetch JSON data from the URLs
-    const oldData = await fetchJson(oldUrl);
-    const newData = await fetchJson(newUrl);
+    const oldDataRaw = await fetchJson(oldUrl);
+    const newDataRaw = await fetchJson(newUrl);
+
+    // Remove ignored keys
+    const oldData = removeIgnoredKeys(oldDataRaw);
+    const newData = removeIgnoredKeys(newDataRaw);
 
     // Categorize differences
-    const differences = categorizeDifferences(oldData, newData);
+    const categorizedDifferences = categorizeDifferences(oldData, newData);
 
     // Export differences to Excel
-    await exportToExcel(differences, outputPath);
+    await exportToExcel(categorizedDifferences, outputPath);
 }
 
 // Run the main function

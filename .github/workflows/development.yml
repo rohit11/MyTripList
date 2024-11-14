@@ -297,9 +297,9 @@ jobs:
         run: |
           cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md  # Copy the updated content to the Wiki
           cd wiki
-          git add Feature-Flags.md
-          git commit -m "Update Feature Flags documentation"
-          git push origin master
+          #git add Feature-Flags.md
+          $git commit -m "Update Feature Flags documentation"
+          $git push origin master
 
       - name: Clean up
         run: rm -rf wiki     

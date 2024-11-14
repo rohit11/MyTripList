@@ -12,6 +12,7 @@ on:
 env:
   FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
+  NUM_RELEASE_BRANCHES: 2  # Number of recent release branches to compare with
 
 jobs:
   update-doc:
@@ -28,39 +29,40 @@ jobs:
         with:
           node-version: '20'
 
-      - name: List All Branches and Get Latest Release Branches
-        id: get-latest-release
+      - name: List All Branches and Get Release Branches
+        id: get-release-branches
         run: |
           echo "Listing all remote branches:"
           git branch -r
-          
+
+          # Define main branch as the first branch
+          branches=("main")
+
+          # Find all branches in the format 'release/v{x.x.x}'
           release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
 
+          # Sort branches by semantic versioning and append the specified number to the branches array
           sorted_branches=($(for branch in "${release_branches[@]}"; do
             echo "$branch"
           done | sort -V))
 
-          if [ ${#sorted_branches[@]} -eq 0 ]; then
-            echo "No valid release branches found."
-            echo "latest_branch=" >> $GITHUB_OUTPUT
-            echo "previous_branch=" >> $GITHUB_OUTPUT
-          elif [ ${#sorted_branches[@]} -eq 1 ]; then
-            latest_release="${sorted_branches[0]}"
-            echo "Only one release branch found: $latest_release"
-            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
-            echo "previous_branch=" >> $GITHUB_OUTPUT
-          else
-            latest_release="${sorted_branches[-1]}"
-            previous_release="${sorted_branches[-2]}"
-            echo "Latest release branch found: $latest_release"
-            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
-            echo "Previous release branch found: $previous_release"
-            echo "previous_branch=$previous_release" >> $GITHUB_OUTPUT
+          num_branches=${{ env.NUM_RELEASE_BRANCHES }}
+          if [ ${#sorted_branches[@]} -lt "$num_branches" ]; then
+            num_branches=${#sorted_branches[@]}
           fi
 
-      - name: Extract Feature Flags
+          for ((i=1; i<=num_branches; i++)); do
+            branches+=("${sorted_branches[-$i]}")
+          done
+
+          # Output all branches for verification
+          echo "Branches to compare (latest to main): ${branches[*]}"
+          echo "branches=${branches[*]}" >> $GITHUB_OUTPUT
+
+      - name: Extract Feature Flags for Each Branch
         id: extract-flags
         run: |
+          # Define a function to extract feature flags from a branch and output to a specified file
           function extract_flags {
             local branch=$1
             local output_file=$2
@@ -92,32 +94,31 @@ jobs:
             cat "$output_file" || echo "No flags extracted from $branch"
           }
 
-          extract_flags "${{ steps.get-latest-release.outputs.latest_branch }}" latest_release_flags.txt
-          extract_flags "${{ steps.get-latest-release.outputs.previous_branch }}" previous_release_flags.txt
-          extract_flags "main" main_flags.txt
+          # Loop through each branch, extract flags, and save to corresponding file
+          IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
+          for ((i=0; i<${#branches[@]}; i++)); do
+            extract_flags "${branches[i]}" "flags_${branches[i]}.txt"
+          done
 
       - name: Generate Comparison Markdown
         run: |
-          declare -A latest_release_flags previous_release_flags main_flags
+          declare -A branch_flags
 
-          while IFS='=' read -r key value; do
-            latest_release_flags["$key"]="$value"
-          done < latest_release_flags.txt
+          # Load all extracted flags into associative arrays
+          IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
+          for branch in "${branches[@]}"; do
+            declare -A flags
+            while IFS='=' read -r key value; do
+              flags["$key"]="$value"
+            done < "flags_$branch.txt"
+            branch_flags["$branch"]="${flags[@]}"
+          done
 
-          while IFS='=' read -r key value; do
-            previous_release_flags["$key"]="$value"
-          done < previous_release_flags.txt
-
-          while IFS='=' read -r key value; do
-            main_flags["$key"]="$value"
-          done < main_flags.txt
-
+          # Begin Markdown content
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          latest_branch="${{ steps.get-latest-release.outputs.latest_branch }}"
-          previous_branch="${{ steps.get-latest-release.outputs.previous_branch }}"
-
+          # Function to print standalone feature flags for each branch
           print_standalone_flags() {
               local -n flags=$1
               local branch_name=$2
@@ -134,39 +135,40 @@ jobs:
               echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           }
 
+          # Function to create summary table with New, Updated, and Deleted flags
           generate_summary_table() {
-              local -n latest_flags=$1
+              local -n current_flags=$1
               local -n previous_flags=$2
-              local latest_branch=$3
+              local current_branch=$3
               local previous_branch=$4
-              local section_title=$5
 
-              echo "## $section_title (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "## Comparison: $current_branch vs. $previous_branch (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
 
               new_changes=()
               updated_changes=()
               deleted_changes=()
 
-              for key in "${!latest_flags[@]}"; do
-                latest_value="${latest_flags[$key]}"
+              # Identify new, updated, and deleted flags
+              for key in "${!current_flags[@]}"; do
+                current_value="${current_flags[$key]}"
                 previous_value="${previous_flags[$key]:-N/A}"
 
                 if [[ "$previous_value" == "N/A" ]]; then
-                  new_changes+=("| \`$latest_value\` | N/A | New 🔵 |")
-                elif [[ "$latest_value" != "$previous_value" ]]; then
-                  updated_changes+=("| \`$latest_value\` | \`$previous_value\` | Updated 🟡 |")
+                  new_changes+=("| \`$current_value\` | N/A | New 🔵 |")
+                elif [[ "$current_value" != "$previous_value" ]]; then
+                  updated_changes+=("| \`$current_value\` | \`$previous_value\` | Updated 🟡 |")
                 fi
               done
 
               for key in "${!previous_flags[@]}"; do
-                if [[ -z "${latest_flags[$key]}" ]]; then
+                if [[ -z "${current_flags[$key]}" ]]; then
                   deleted_changes+=("| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |")
                 fi
               done
 
               if [ ${#new_changes[@]} -gt 0 ]; then
                 echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
@@ -176,7 +178,7 @@ jobs:
 
               if [ ${#updated_changes[@]} -gt 0 ]; then
                 echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
@@ -186,7 +188,7 @@ jobs:
 
               if [ ${#deleted_changes[@]} -gt 0 ]; then
                 echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
                 printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
               else
@@ -195,19 +197,19 @@ jobs:
               fi
           }
 
-          if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
-            generate_summary_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Comparison: $latest_branch vs. $previous_branch"
-            generate_summary_table main_flags latest_release_flags "main" "$latest_branch" "Comparison: main vs. $latest_branch"
-            print_standalone_flags latest_release_flags "$latest_branch"
-            print_standalone_flags main_flags "main"
-          fi
+          # Generate comparison tables in the requested order
+          for ((i=1; i<${#branches[@]}; i++)); do
+            current_branch="${branches[$i]}"
+            previous_branch="${branches[$((i - 1))]}"
+            generate_summary_table "branch_flags[$current_branch]" "branch_flags[$previous_branch]" "$current_branch" "$previous_branch"
+          done
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
 
       - name: Cleanup Temporary Files
         run: |
-          rm -f main_flags.txt latest_release_flags.txt previous_release_flags.txt
+          rm -f flags_*.txt
 
       - name: Commit and Push Changes
         run: |

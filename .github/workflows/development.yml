@@ -64,22 +64,38 @@ jobs:
             if [ -n "$branch" ]; then
               git checkout "$branch"
 
-              # Extract values from FeatureFlagMapping and FeatureFlag enum without any specific prefix requirement
-              grep -E '[A-Za-z0-9_]+' "$FEATURE_FLAG_FILE" | awk '
-                /FeatureFlagMapping/ { in_mapping = 1; next }       # Start capturing FeatureFlagMapping values
-                in_mapping && /}/ { in_mapping = 0 }               # Stop capturing at end of FeatureFlagMapping
-                in_mapping && /: / {                               # Extract values within FeatureFlagMapping
-                  match($0, /"([A-Za-z0-9_]+)"/, arr)
-                  if (arr[1] != "") print arr[1]
+              # Node.js script to extract feature flag values
+              node -e "
+                const fs = require('fs');
+                const path = require('path');
+                const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+                const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+
+                const mappingRegex = /export const FeatureFlagMapping\\s*=\\s*{([\\s\\S]+?)};/;
+                const enumRegex = /export enum FeatureFlag\\s*{([\\s\\S]+?)}/;
+
+                let values = [];
+
+                // Extract values from FeatureFlagMapping
+                const mappingMatch = content.match(mappingRegex);
+                if (mappingMatch) {
+                  const mappingContent = mappingMatch[1];
+                  const mappingValues = [...mappingContent.matchAll(/: ['\"]?([A-Za-z0-9_]+)['\"]?/g)].map(m => m[1]);
+                  values = values.concat(mappingValues);
                 }
 
-                /export enum FeatureFlag/ { in_enum = 1; next }    # Start capturing FeatureFlag enum values
-                in_enum && /}/ { in_enum = 0 }                     # Stop capturing at end of FeatureFlag enum
-                in_enum && /'/ {                                  # Extract single-quoted values within FeatureFlag enum
-                  match($0, /'\''([A-Za-z0-9_]+)'\''/, arr)
-                  if (arr[1] != "") print arr[1]
+                // Extract values from FeatureFlag enum
+                const enumMatch = content.match(enumRegex);
+                if (enumMatch) {
+                  const enumContent = enumMatch[1];
+                  const enumValues = [...enumContent.matchAll(/['\"]?([A-Za-z0-9_]+)['\"]?/g)].map(m => m[1]);
+                  values = values.concat(enumValues);
                 }
-              ' > "$output_file"
+
+                // Print unique values
+                const uniqueValues = [...new Set(values)];
+                uniqueValues.forEach(value => console.log(value));
+              " > "$output_file"
 
             else
               echo "Branch $branch is not available. Skipping flag extraction."

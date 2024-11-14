@@ -1,5 +1,7 @@
 const axios = require('axios');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
 
 // Function to fetch JSON data from a URL
 async function fetchJson(url) {
@@ -53,13 +55,12 @@ function categorizeEntries(oldData, newData) {
 
 // Function to generate a unique, valid worksheet name
 function generateWorksheetName(name, existingNames) {
-    let truncatedName = name.slice(0, 31); // Truncate to 31 characters
-    let uniqueName = truncatedName;
+    let sanitizedName = name.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 31); // Remove special characters and limit to 31 chars
+    let uniqueName = sanitizedName;
     let counter = 1;
 
     while (existingNames.has(uniqueName)) {
-        // Append a counter to ensure uniqueness
-        uniqueName = `${truncatedName.slice(0, 28)}_${counter}`;
+        uniqueName = `${sanitizedName.slice(0, 28)}_${counter}`;
         counter++;
     }
 
@@ -84,83 +85,137 @@ async function exportToExcel(dataByParentKey, outputPath) {
 
         let currentRow = 1;
 
-        // Add "New Entries" section if there are new entries
-        if (newEntries.length > 0) {
-            sheet.getRow(currentRow).values = ['New Entries'];
-            sheet.getRow(currentRow).font = { bold: true, size: 12 };
-            currentRow++;
+        // Add full parent key name as the title at the top
+        sheet.getRow(currentRow).values = [`Parent Key: ${parentKey}`];
+        sheet.getRow(currentRow).font = { bold: true, size: 14 };
+        currentRow += 2;
 
-            // Add headers for "New Entries" section
-            const headers = Object.keys(newEntries[0]);
-            sheet.getRow(currentRow).values = headers;
-            sheet.getRow(currentRow).font = { bold: true };
-            currentRow++;
+        // Check if there are any differences
+        if (newEntries.length === 0 && notFoundEntries.length === 0) {
+            sheet.getRow(currentRow).values = ['No differences found'];
+            sheet.getRow(currentRow).font = { italic: true };
+        } else {
+            if (newEntries.length > 0) {
+                sheet.getRow(currentRow).values = ['New Entries'];
+                sheet.getRow(currentRow).font = { bold: true, size: 12 };
+                currentRow++;
 
-            // Add new entries rows
-            newEntries.forEach(entry => {
-                const rowValues = headers.map(header => entry[header] || '');
-                const row = sheet.addRow(rowValues);
-                row.eachCell(cell => {
-                    cell.fill = newStyle;
+                const headers = Object.keys(newEntries[0]);
+                sheet.getRow(currentRow).values = headers;
+                sheet.getRow(currentRow).font = { bold: true };
+                currentRow++;
+
+                newEntries.forEach(entry => {
+                    const rowValues = headers.map(header => 
+                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
+                    );
+                    const row = sheet.addRow(rowValues);
+                    row.eachCell(cell => {
+                        cell.fill = newStyle;
+                    });
+                    currentRow++;
                 });
                 currentRow++;
-            });
-            currentRow++; // Add a blank row after the section
-        }
+            }
 
-        // Add "Not Found Entries" section if there are not found entries
-        if (notFoundEntries.length > 0) {
-            sheet.getRow(currentRow).values = ['Not Found Entries'];
-            sheet.getRow(currentRow).font = { bold: true, size: 12 };
-            currentRow++;
-
-            // Add headers for "Not Found Entries" section
-            const headers = Object.keys(notFoundEntries[0]);
-            sheet.getRow(currentRow).values = headers;
-            sheet.getRow(currentRow).font = { bold: true };
-            currentRow++;
-
-            // Add not found entries rows
-            notFoundEntries.forEach(entry => {
-                const rowValues = headers.map(header => entry[header] || '');
-                const row = sheet.addRow(rowValues);
-                row.eachCell(cell => {
-                    cell.fill = notFoundStyle;
-                });
+            if (notFoundEntries.length > 0) {
+                sheet.getRow(currentRow).values = ['Not Found Entries'];
+                sheet.getRow(currentRow).font = { bold: true, size: 12 };
                 currentRow++;
-            });
+
+                const headers = Object.keys(notFoundEntries[0]);
+                sheet.getRow(currentRow).values = headers;
+                sheet.getRow(currentRow).font = { bold: true };
+                currentRow++;
+
+                notFoundEntries.forEach(entry => {
+                    const rowValues = headers.map(header => 
+                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
+                    );
+                    const row = sheet.addRow(rowValues);
+                    row.eachCell(cell => {
+                        cell.fill = notFoundStyle;
+                    });
+                    currentRow++;
+                });
+            }
         }
     }
 
     await workbook.xlsx.writeFile(outputPath);
-    console.log(`Differences exported to ${outputPath}`);
+    console.log(`Excel exported to ${outputPath}`);
+}
+
+// Function to export data to PDF
+async function exportToPDF(dataByParentKey, outputPath) {
+    const doc = new PDFDocument();
+    doc.pipe(fs.createWriteStream(outputPath));
+
+    for (const [parentKey, data] of Object.entries(dataByParentKey)) {
+        const { newEntries, notFoundEntries } = data;
+
+        doc.addPage().fontSize(14).text(`Parent Key: ${parentKey}`, { underline: true });
+        doc.moveDown();
+
+        if (newEntries.length === 0 && notFoundEntries.length === 0) {
+            doc.fontSize(12).text('No differences found');
+        } else {
+            if (newEntries.length > 0) {
+                doc.fontSize(12).text('New Entries', { underline: true }).moveDown();
+                const headers = Object.keys(newEntries[0]);
+                doc.fontSize(10).text(headers.join(' | '), { continued: false }).moveDown();
+
+                newEntries.forEach(entry => {
+                    const rowValues = headers.map(header => 
+                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
+                    );
+                    doc.text(rowValues.join(' | ')).moveDown(0.5);
+                });
+                doc.moveDown();
+            }
+
+            if (notFoundEntries.length > 0) {
+                doc.fontSize(12).text('Not Found Entries', { underline: true }).moveDown();
+                const headers = Object.keys(notFoundEntries[0]);
+                doc.fontSize(10).text(headers.join(' | '), { continued: false }).moveDown();
+
+                notFoundEntries.forEach(entry => {
+                    const rowValues = headers.map(header => 
+                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
+                    );
+                    doc.text(rowValues.join(' | ')).moveDown(0.5);
+                });
+            }
+        }
+    }
+
+    doc.end();
+    console.log(`PDF exported to ${outputPath}`);
 }
 
 // Main function
 async function main() {
     const oldUrl = 'https://example.com/old.json'; // Replace with actual URL
     const newUrl = 'https://example.com/new.json'; // Replace with actual URL
-    const outputPath = 'json_differences.xlsx';
+    const excelOutputPath = 'json_differences.xlsx';
+    const pdfOutputPath = 'json_differences.pdf';
 
-    // Fetch JSON data from the URLs
     const oldDataRaw = await fetchJson(oldUrl);
     const newDataRaw = await fetchJson(newUrl);
 
-    // Remove ignored keys
     const oldData = removeIgnoredKeys(oldDataRaw);
     const newData = removeIgnoredKeys(newDataRaw);
 
     const dataByParentKey = {};
 
-    // Iterate through each parent key in the JSON data
     for (const key of Object.keys(newData)) {
         if (Array.isArray(newData[key]) && Array.isArray(oldData[key])) {
             dataByParentKey[key] = categorizeEntries(oldData[key], newData[key]);
         }
     }
 
-    // Export the categorized data to Excel
-    await exportToExcel(dataByParentKey, outputPath);
+    await exportToExcel(dataByParentKey, excelOutputPath);
+    await exportToPDF(dataByParentKey, pdfOutputPath);
 }
 
 // Run the main function

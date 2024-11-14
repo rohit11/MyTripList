@@ -6,7 +6,7 @@
 | 1 | `ENABLE_FEATURE_4` | N/A | New 🔵 |
 | 2 | `ENABLE_FEATURE_5` | N/A | New 🔵 |
 
-## Deleted Values in release/1.0.0 (Compared to release/1.0.1)
+## Deleted Values in release/1.0.1 (Compared to release/1.0.0)
 | Count | release/1.0.0 Value | release/1.0.1 Value | Status |
 |-------|------------------------|------------------------|--------|
 | 1 | `ENABLE_FEATURE_3` | N/A | Deleted 🔴 |

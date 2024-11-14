@@ -205,7 +205,7 @@ jobs:
 
           # Compare main to latest release
           if [ -n "${main_values[0]}" ] && [ -n "${latest_release_values[0]}" ]; then
-            compare_values main_values latest_release_values "main" "${{ steps.get-latest-release.outputs.latest_branch }}"
+            compare_values latest_release_values main_values "${{ steps.get-latest-release.outputs.latest_branch }}" "main"
           fi
 
           # Print all feature flags for each branch

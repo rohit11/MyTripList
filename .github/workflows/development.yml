@@ -63,23 +63,17 @@ jobs:
 
             if [ -n "$branch" ]; then
               git checkout "$branch"
-              node -e "
-                const fs = require('fs');
-                const path = require('path');
-                const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-                const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+              
+              # Extract lines containing FeatureFlag values
+              grep -E 'ENABLE_[A-Z0-9_]+|FeatureFlagMapping' "$FEATURE_FLAG_FILE" | awk '
+                /FeatureFlagMapping/ { in_mapping = 1; next }
+                in_mapping && /}/ { in_mapping = 0 }
+                in_mapping && /ENABLE_/ { print $0 }
+                /export enum FeatureFlag/ { in_enum = 1; next }
+                in_enum && /}/ { in_enum = 0 }
+                in_enum && /ENABLE_/ { print $0 }
+              ' | sed -E 's/.*"(ENABLE_[A-Z0-9_]+)".*/\1/' > "$output_file"
 
-                // Extract from FeatureFlagMapping if it exists
-                const mappingMatch = content.match(/export const FeatureFlagMapping\\s*=\\s*{([\\s\\S]+?)};/);
-                const mappingValues = mappingMatch ? Object.values(eval('(' + '{' + mappingMatch[1].trim() + '}' + ')')) : [];
-
-                // Extract from FeatureFlag enum if it exists
-                const enumMatch = content.match(/export enum FeatureFlag\\s*{([\\s\\S]+?)}/);
-                const enumValues = enumMatch ? enumMatch[1].split(',').map(e => e.trim().replace(/['"]/g, '')) : [];
-
-                const combinedValues = [...new Set([...mappingValues, ...enumValues])];
-                combinedValues.forEach(value => console.log(value));
-              " > "$output_file"
             else
               echo "Branch $branch is not available. Skipping flag extraction."
               touch "$output_file"

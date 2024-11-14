@@ -51,9 +51,26 @@ function categorizeEntries(oldData, newData) {
     return { newEntries, notFoundEntries };
 }
 
+// Function to generate a unique, valid worksheet name
+function generateWorksheetName(name, existingNames) {
+    let truncatedName = name.slice(0, 31); // Truncate to 31 characters
+    let uniqueName = truncatedName;
+    let counter = 1;
+
+    while (existingNames.has(uniqueName)) {
+        // Append a counter to ensure uniqueness
+        uniqueName = `${truncatedName.slice(0, 28)}_${counter}`;
+        counter++;
+    }
+
+    existingNames.add(uniqueName);
+    return uniqueName;
+}
+
 // Function to export data to Excel with separate sheets for each parent key
 async function exportToExcel(dataByParentKey, outputPath) {
     const workbook = new ExcelJS.Workbook();
+    const existingNames = new Set(); // Track existing worksheet names to ensure uniqueness
 
     const newStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } } }; // Green for New
     const notFoundStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } } }; // Red for Not Found
@@ -61,8 +78,9 @@ async function exportToExcel(dataByParentKey, outputPath) {
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
 
-        // Create a sheet for the current parent key
-        const sheet = workbook.addWorksheet(parentKey);
+        // Generate a unique worksheet name
+        const sheetName = generateWorksheetName(parentKey, existingNames);
+        const sheet = workbook.addWorksheet(sheetName);
 
         let currentRow = 1;
 

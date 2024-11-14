@@ -60,48 +60,47 @@ jobs:
           function extract_values {
             local branch=$1
             local output_file=$2
-
+      
             if [ -n "$branch" ]; then
               git checkout "$branch"
-
-              # Node.js script to extract feature flag values
+      
+              # Node.js script to extract feature flag values from both FeatureFlagMapping and FeatureFlag enum
               node -e "
                 const fs = require('fs');
                 const path = require('path');
                 const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
                 const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-
-                const mappingRegex = /export const FeatureFlagMapping\\s*=\\s*{([\\s\\S]+?)};/;
-                const enumRegex = /export enum FeatureFlag\\s*{([\\s\\S]+?)}/;
-
+      
                 let values = [];
-
-                // Extract values from FeatureFlagMapping
+      
+                // Match FeatureFlagMapping section and extract values
+                const mappingRegex = /export const FeatureFlagMapping\\s*=\\s*{([\\s\\S]+?)}/;
                 const mappingMatch = content.match(mappingRegex);
                 if (mappingMatch) {
                   const mappingContent = mappingMatch[1];
                   const mappingValues = [...mappingContent.matchAll(/: ['\"]?([A-Za-z0-9_]+)['\"]?/g)].map(m => m[1]);
                   values = values.concat(mappingValues);
                 }
-
-                // Extract values from FeatureFlag enum
+      
+                // Match FeatureFlag enum section and extract values
+                const enumRegex = /export enum FeatureFlag\\s*{([\\s\\S]+?)}/;
                 const enumMatch = content.match(enumRegex);
                 if (enumMatch) {
                   const enumContent = enumMatch[1];
                   const enumValues = [...enumContent.matchAll(/['\"]?([A-Za-z0-9_]+)['\"]?/g)].map(m => m[1]);
                   values = values.concat(enumValues);
                 }
-
+      
                 // Print unique values
                 const uniqueValues = [...new Set(values)];
                 uniqueValues.forEach(value => console.log(value));
               " > "$output_file"
-
+      
             else
               echo "Branch $branch is not available. Skipping flag extraction."
               touch "$output_file"
             fi
-
+      
             echo "Values extracted from $branch:"
             cat "$output_file" || echo "No values extracted from $branch"
           }

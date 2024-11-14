@@ -51,42 +51,36 @@ function categorizeEntries(oldData, newData) {
     return { newEntries, notFoundEntries };
 }
 
-// Function to export data to a single Excel sheet with sections for each parent key
-async function exportToSingleExcelSheet(dataByParentKey, outputPath) {
+// Function to export data to Excel with separate sheets for each parent key
+async function exportToExcel(dataByParentKey, outputPath) {
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Comparison');
 
-    let currentRow = 1;
-
-    // Define styles
-    const headerStyle = { bold: true };
     const newStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } } }; // Green for New
     const notFoundStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } } }; // Red for Not Found
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
 
-        // Add parent key title
-        sheet.getRow(currentRow).values = [`${parentKey} - Comparison`];
-        sheet.getRow(currentRow).font = { bold: true, size: 14 };
-        currentRow += 2;
+        // Create a sheet for the current parent key
+        const sheet = workbook.addWorksheet(parentKey);
 
-        // Add "New" section if there are new entries
+        let currentRow = 1;
+
+        // Add "New Entries" section if there are new entries
         if (newEntries.length > 0) {
             sheet.getRow(currentRow).values = ['New Entries'];
-            sheet.getRow(currentRow).font = headerStyle;
+            sheet.getRow(currentRow).font = { bold: true, size: 12 };
             currentRow++;
 
             // Add headers for "New Entries" section
             const headers = Object.keys(newEntries[0]);
-            sheet.getRow(currentRow).values = [...headers, 'Change Type'];
-            sheet.getRow(currentRow).font = headerStyle;
+            sheet.getRow(currentRow).values = headers;
+            sheet.getRow(currentRow).font = { bold: true };
             currentRow++;
 
             // Add new entries rows
             newEntries.forEach(entry => {
                 const rowValues = headers.map(header => entry[header] || '');
-                rowValues.push('New');
                 const row = sheet.addRow(rowValues);
                 row.eachCell(cell => {
                     cell.fill = newStyle;
@@ -96,31 +90,28 @@ async function exportToSingleExcelSheet(dataByParentKey, outputPath) {
             currentRow++; // Add a blank row after the section
         }
 
-        // Add "Not Found" section if there are not found entries
+        // Add "Not Found Entries" section if there are not found entries
         if (notFoundEntries.length > 0) {
             sheet.getRow(currentRow).values = ['Not Found Entries'];
-            sheet.getRow(currentRow).font = headerStyle;
+            sheet.getRow(currentRow).font = { bold: true, size: 12 };
             currentRow++;
 
             // Add headers for "Not Found Entries" section
             const headers = Object.keys(notFoundEntries[0]);
-            sheet.getRow(currentRow).values = [...headers, 'Change Type'];
-            sheet.getRow(currentRow).font = headerStyle;
+            sheet.getRow(currentRow).values = headers;
+            sheet.getRow(currentRow).font = { bold: true };
             currentRow++;
 
             // Add not found entries rows
             notFoundEntries.forEach(entry => {
                 const rowValues = headers.map(header => entry[header] || '');
-                rowValues.push('Not Found');
                 const row = sheet.addRow(rowValues);
                 row.eachCell(cell => {
                     cell.fill = notFoundStyle;
                 });
                 currentRow++;
             });
-            currentRow++; // Add a blank row after the section
         }
-        currentRow++; // Extra space between different parent keys
     }
 
     await workbook.xlsx.writeFile(outputPath);
@@ -150,8 +141,8 @@ async function main() {
         }
     }
 
-    // Export the categorized data to a single Excel sheet
-    await exportToSingleExcelSheet(dataByParentKey, outputPath);
+    // Export the categorized data to Excel
+    await exportToExcel(dataByParentKey, outputPath);
 }
 
 // Run the main function

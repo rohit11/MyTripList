@@ -1,24 +1,22 @@
-name: Rohit Feature Flags Documentation
+name: Update Feature Flags Documentation
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allows manual triggering of the workflow
+  workflow_dispatch:  # Allow manual triggering
 
 env:
   FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:
-  extract-feature-flags:
+  update-doc:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all branches to ensure release branches are available
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -38,30 +36,29 @@ jobs:
             const mappingMatch = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
             const enumMatch = content.match(/export enum FeatureFlag \\{([\\s\\S]+?)\\}/);
 
+            const flags = [];
+            
             if (mappingMatch && mappingMatch[1]) {
               // Extract values from FeatureFlagMapping object
-              const objectContent = '{' + mappingMatch[1].trim() + '}';
-              const FeatureFlagMapping = eval('(' + objectContent + ')');
-              Object.values(FeatureFlagMapping).forEach(value => {
-                console.log(`\${value}=\${value}`);
+              const flagLines = mappingMatch[1].split(',');
+              flagLines.forEach(line => {
+                const flag = line.split(':')[0].trim().replace(/['"]/g, '');
+                if (flag) flags.push(flag);
               });
             } else if (enumMatch && enumMatch[1]) {
-              // Clean up extracted enum content before splitting
-              const cleanedEnumContent = enumMatch[1]
-                .replace(/\s/g, '')  // Remove whitespace
-                .replace(/['"]/g, '');  // Remove quotes
-
-              // Split by comma to get individual flag values
-              const values = cleanedEnumContent.split(',').filter(value => value);
-
-              values.forEach(value => {
-                console.log(`\${value}=\${value}`);
+              // Extract values from enum
+              const flagLines = enumMatch[1].split(',');
+              flagLines.forEach(line => {
+                const flag = line.trim().replace(/['"]/g, '');
+                if (flag) flags.push(flag);
               });
             } else {
               console.error('Neither FeatureFlagMapping object nor enum FeatureFlag found in FeatureFlags.tsx');
               process.exit(1);
             }
-          " > extracted_feature_flags.txt
+
+            fs.writeFileSync('extracted_feature_flags.txt', flags.join('\\n'));
+          "
           echo "Feature flags extracted:"
           cat extracted_feature_flags.txt
 
@@ -69,11 +66,11 @@ jobs:
         run: |
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "| Feature Flag | Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "|--------------|-------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "| Feature Flag |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          echo "|--------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          while IFS='=' read -r key value; do
-            echo "| $key | $value |" >> ${{ env.FEATURE_FLAGS_DOC }}
+          while IFS= read -r flag; do
+            echo "| $flag |" >> ${{ env.FEATURE_FLAGS_DOC }}
           done < extracted_feature_flags.txt
 
       - name: Commit and Push Changes

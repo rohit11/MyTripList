@@ -35,7 +35,7 @@ jobs:
           git branch -r
           
           # Find all branches in the format 'release/v{x.x.x}'
-          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/v[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
+          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
 
           # Sort branches by semantic versioning
           sorted_branches=($(for branch in "${release_branches[@]}"; do

@@ -45,13 +45,6 @@ jobs:
                 const flag = line.split(':')[0].trim().replace(/['"]/g, '');
                 if (flag) flags.push(flag);
               });
-            } else if (enumMatch && enumMatch[1]) {
-              // Extract values from enum
-              const flagLines = enumMatch[1].split(',');
-              flagLines.forEach(line => {
-                const flag = line.trim().replace(/['"]/g, '');
-                if (flag) flags.push(flag);
-              });
             } else {
               console.error('Neither FeatureFlagMapping object nor enum FeatureFlag found in FeatureFlags.tsx');
               process.exit(1);

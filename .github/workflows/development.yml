@@ -251,56 +251,16 @@ jobs:
               fi
           }
 
-          # Function to create full comparison table
-          generate_full_comparison_table() {
-              local -n latest_flags=$1
-              local -n previous_flags=$2
-              local latest_branch=$3
-              local previous_branch=$4
-              local section_title=$5
-
-              echo "### $section_title (Full Comparison)" >> ${{ env.FEATURE_FLAGS_DOC }}
-              echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-              echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-              for key in "${!latest_flags[@]}"; do
-                latest_value="${latest_flags[$key]}"
-                previous_value="${previous_flags[$key]:-N/A}"
-                status=""
-
-                if [[ "$previous_value" == "N/A" ]]; then
-                  status="New 🔵"
-                elif [[ "$latest_value" != "$previous_value" ]]; then
-                  status="Updated 🟡"
-                else
-                  status="Unchanged ⚪"
-                fi
-
-                echo "| \`$latest_value\` | \`$previous_value\` | $status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-              done
-
-              for key in "${!previous_flags[@]}"; do
-                if [[ -z "${latest_flags[$key]}" ]]; then
-                  echo "| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                fi
-              done
-              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          }
+          
 
           # Generate summary and full comparison tables in requested order
           if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
             generate_summary_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Comparison: $latest_branch vs. $previous_branch"
             generate_summary_table main_flags latest_release_flags "main" "$latest_branch" "Comparison: main vs. $latest_branch"
             print_standalone_flags latest_release_flags "$latest_branch"
-            generate_full_comparison_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Full Comparison: $latest_branch vs. $previous_branch"
             print_standalone_flags main_flags "main"
-            generate_full_comparison_table main_flags latest_release_flags "main" "$latest_branch" "Full Comparison: main vs. $latest_branch"
           fi
           
-         
-
-          
- 
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}

@@ -1,5 +1,14 @@
 # Feature Flags Documentation
 
+## Current Release Branch Feature Flags
+| Count | Key              | Value                       |
+|-------|------------------|-----------------------------|
+| 1 | isFeaure5Enabled | `ENABLE_FEATURE_5` |
+| 2 | isFeaure1Enabled | `ENABLE_FEATURE_1` |
+| 3 | isFeaure4Enabled | `ENABLE_FEATURE_4` |
+| 4 | isFeaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Enabled | `ENABLE_Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure3Feaure_3` |
+| 5 | isFeaure2Enabled | `ENABLE_FEATURE_2` |
+
 > **Comparison between `main` and `  release/1.0.1`**
 
 ## Summary of Changes

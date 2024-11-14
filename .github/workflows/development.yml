@@ -93,6 +93,11 @@ jobs:
             extract_flags "$branch"
           done
 
+      - name: Switch Back to Main Branch
+        run: |
+          git checkout main
+          echo "Switched back to main branch for documentation generation."
+
       - name: Generate Comparison Markdown
         run: |
           declare -A branch_flags

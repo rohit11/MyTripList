@@ -64,49 +64,57 @@ jobs:
           fi
 
       - name: Extract Feature Flags from Latest Release Branch (if available)
-  id: extract-latest-release-flags
-  run: |
-    if [ -n "${{ steps.get-latest-release.outputs.latest_branch }}" ]; then
-      git checkout ${{ steps.get-latest-release.outputs.latest_branch }}
-      node -e "
-        const fs = require('fs');
-        const path = require('path');
-        const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-        
-        // Check if file exists
-        if (!fs.existsSync(featureFlagFilePath)) {
-          console.error('FeatureFlags.tsx file not found.');
-          process.exit(1);
-        }
-
-        const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-
-        // Try to match FeatureFlagMapping or enum pattern
-        const mappingMatch = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-        const enumMatch = content.match(/export enum FeatureFlag \\{([\\s\\S]+?)\\}/);
-
-        if (mappingMatch && mappingMatch[1]) {
-          const objectContent = '{' + mappingMatch[1].trim() + '}';
-          const FeatureFlagMapping = eval('(' + objectContent + ')');
-          for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-            console.log(\`\${key}=\${value}\`);
-          }
-        } else if (enumMatch && enumMatch[1]) {
-          const enumContent = enumMatch[1].trim().split(',').map(flag => flag.trim().replace(/['"]/g, ''));
-          for (const value of enumContent) {
-            console.log(\`\${value}=\${value}\`);
-          }
-        } else {
-          console.error('Neither FeatureFlagMapping object nor enum FeatureFlag found in FeatureFlags.tsx');
-          process.exit(1);
-        }
-      " > latest_release_flags.txt
-    else
-      echo "No latest release branch available. Skipping flag extraction."
-      touch latest_release_flags.txt
-    fi
-    echo "Latest release flags extracted:"
-    cat latest_release_flags.txt || echo "No flags extracted from latest release branch"
+        id: extract-latest-release-flags
+        run: |
+          if [ -n "${{ steps.get-latest-release.outputs.latest_branch }}" ]; then
+            git checkout ${{ steps.get-latest-release.outputs.latest_branch }}
+            node -e "
+              const fs = require('fs');
+              const path = require('path');
+              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+              
+              if (!fs.existsSync(featureFlagFilePath)) {
+                console.error('FeatureFlags.tsx file not found.');
+                process.exit(1);
+              }
+      
+              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+      
+              // Match for FeatureFlagMapping or enum FeatureFlag pattern
+              const mappingMatch = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+              const enumMatch = content.match(/export enum FeatureFlag \\{([\\s\\S]+?)\\}/);
+      
+              if (mappingMatch && mappingMatch[1]) {
+                // Extract values only (assumes values are strings in 'FeatureFlagMapping')
+                const values = mappingMatch[1]
+                  .split(',')
+                  .map(line => line.split(':')[1]?.trim().replace(/['",]/g, ''))
+                  .filter(value => value);
+                
+                values.forEach(value => {
+                  console.log(\`\${value}=\${value}\`);
+                });
+              } else if (enumMatch && enumMatch[1]) {
+                // Extract values from enum (assumes values in 'FeatureFlag')
+                const values = enumMatch[1]
+                  .split(',')
+                  .map(flag => flag.trim().replace(/['"]/g, ''))
+                  .filter(value => value);
+      
+                values.forEach(value => {
+                  console.log(\`\${value}=\${value}\`);
+                });
+              } else {
+                console.error('Neither FeatureFlagMapping object nor enum FeatureFlag found in FeatureFlags.tsx');
+                process.exit(1);
+              }
+            " > latest_release_flags.txt
+          else
+            echo "No latest release branch available. Skipping flag extraction."
+            touch latest_release_flags.txt
+          fi
+          echo "Latest release flags extracted:"
+          cat latest_release_flags.txt || echo "No flags extracted from latest release branch"
 
 
       - name: Extract Feature Flags from Branches

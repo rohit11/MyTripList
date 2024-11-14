@@ -1,4 +1,4 @@
-name: Working Develop Update Feature Flags Documentation
+name: Develop Update Feature Flags Documentation
 
 on:
   schedule:
@@ -110,32 +110,58 @@ jobs:
             local previous_branch=$4
 
             # New values table
-            echo "## New Values in $current_branch (Compared to $previous_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
             new_found=false
             for value in "${current_values[@]}"; do
               if [[ ! " ${previous_values[*]} " =~ " ${value} " ]]; then
-                echo "- \`$value\` (Status: New 🔵, $previous_branch: N/A)" >> ${{ env.FEATURE_FLAGS_DOC }}
                 new_found=true
+                break
               fi
             done
-            if [ "$new_found" = false ]; then
+            if [ "$new_found" = true ]; then
+              echo "## New Values in $current_branch (Compared to $previous_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Count | $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-------|------------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              
+              count=1
+              for value in "${current_values[@]}"; do
+                if [[ ! " ${previous_values[*]} " =~ " ${value} " ]]; then
+                  echo "| $count | \`$value\` | N/A | New 🔵 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                  ((count++))
+                fi
+              done
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+            else
+              echo "## New Values in $current_branch (Compared to $previous_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
               echo "- No new values found" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
             fi
-            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
             # Deleted values table
-            echo "## Deleted Values in $previous_branch (Compared to $current_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
             deleted_found=false
             for value in "${previous_values[@]}"; do
               if [[ ! " ${current_values[*]} " =~ " ${value} " ]]; then
-                echo "- \`$value\` (Status: Deleted 🔴, $current_branch: N/A)" >> ${{ env.FEATURE_FLAGS_DOC }}
                 deleted_found=true
+                break
               fi
             done
-            if [ "$deleted_found" = false ]; then
+            if [ "$deleted_found" = true ]; then
+              echo "## Deleted Values in $previous_branch (Compared to $current_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Count | $previous_branch Value | $current_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-------|------------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+              
+              count=1
+              for value in "${previous_values[@]}"; do
+                if [[ ! " ${current_values[*]} " =~ " ${value} " ]]; then
+                  echo "| $count | \`$value\` | N/A | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                  ((count++))
+                fi
+              done
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+            else
+              echo "## Deleted Values in $previous_branch (Compared to $current_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
               echo "- No deleted values found" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
             fi
-            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           }
 
           # Compare latest and previous release branches

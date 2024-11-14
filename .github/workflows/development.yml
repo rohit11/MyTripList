@@ -70,7 +70,7 @@ jobs:
                 const content = fs.readFileSync(featureFlagFilePath, 'utf8');
 
                 // Extract from FeatureFlagMapping if it exists
-                const mappingMatch = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+                const mappingMatch = content.match(/export const FeatureFlagMapping\\s*=\\s*{([\\s\\S]+?)};/);
                 const mappingValues = mappingMatch ? Object.values(eval('(' + '{' + mappingMatch[1].trim() + '}' + ')')) : [];
 
                 // Extract from FeatureFlag enum if it exists

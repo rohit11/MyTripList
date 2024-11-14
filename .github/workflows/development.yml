@@ -111,14 +111,14 @@ jobs:
 
             # New values table
             echo "## New Values in $current_branch (Compared to $previous_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "| Count | $current_branch Value | $previous_branch Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "|-------|------------------------|------------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | $current_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
             
             count=1
             new_found=false
             for value in "${current_values[@]}"; do
               if [[ ! " ${previous_values[*]} " =~ " ${value} " ]]; then
-                echo "| $count | \`$value\` | N/A | New 🔵 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $count | \`$value\` | New 🔵 |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 new_found=true
                 ((count++))
               fi
@@ -130,14 +130,14 @@ jobs:
 
             # Deleted values table
             echo "## Deleted Values in $previous_branch (Compared to $current_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "| Count | $previous_branch Value | $current_branch Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "|-------|------------------------|------------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
             
             count=1
             deleted_found=false
             for value in "${previous_values[@]}"; do
               if [[ ! " ${current_values[*]} " =~ " ${value} " ]]; then
-                echo "| $count | \`$value\` | N/A | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $count | \`$value\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
                 deleted_found=true
                 ((count++))
               fi

@@ -68,16 +68,17 @@ jobs:
                 const path = require('path');
                 const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
                 const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-                const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-                if (!match || !match[1]) {
-                  console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-                  process.exit(1);
-                }
-                const objectContent = '{' + match[1].trim() + '}';
-                const FeatureFlagMapping = eval('(' + objectContent + ')');
-                Object.values(FeatureFlagMapping).forEach(value => {
-                  console.log(value);
-                });
+
+                // Extract from FeatureFlagMapping if it exists
+                const mappingMatch = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+                const mappingValues = mappingMatch ? Object.values(eval('(' + '{' + mappingMatch[1].trim() + '}' + ')')) : [];
+
+                // Extract from FeatureFlag enum if it exists
+                const enumMatch = content.match(/export enum FeatureFlag\\s*{([\\s\\S]+?)}/);
+                const enumValues = enumMatch ? enumMatch[1].split(',').map(e => e.trim().replace(/['"]/g, '')) : [];
+
+                const combinedValues = [...new Set([...mappingValues, ...enumValues])];
+                combinedValues.forEach(value => console.log(value));
               " > "$output_file"
             else
               echo "Branch $branch is not available. Skipping flag extraction."

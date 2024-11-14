@@ -35,13 +35,9 @@ jobs:
           echo "Listing all remote branches:"
           git branch -r
 
-          # Define main branch as the first branch
           branches=("main")
 
-          # Find all branches in the format 'release/v{x.x.x}'
           release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
-
-          # Sort branches by semantic versioning and append the specified number to the branches array
           sorted_branches=($(for branch in "${release_branches[@]}"; do
             echo "$branch"
           done | sort -V))
@@ -55,17 +51,15 @@ jobs:
             branches+=("${sorted_branches[-$i]}")
           done
 
-          # Output all branches for verification
           echo "Branches to compare (latest to main): ${branches[*]}"
           echo "branches=${branches[*]}" >> $GITHUB_OUTPUT
 
       - name: Extract Feature Flags for Each Branch
         id: extract-flags
         run: |
-          # Define a function to extract feature flags from a branch and output to a specified file
           function extract_flags {
             local branch=$1
-            local output_file=$2
+            local output_file="flags_${branch//\//_}.txt"  # Replace '/' with '_' in filename
 
             if [ -n "$branch" ]; then
               git checkout "$branch"
@@ -94,31 +88,27 @@ jobs:
             cat "$output_file" || echo "No flags extracted from $branch"
           }
 
-          # Loop through each branch, extract flags, and save to corresponding file
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
-          for ((i=0; i<${#branches[@]}; i++)); do
-            extract_flags "${branches[i]}" "flags_${branches[i]}.txt"
+          for branch in "${branches[@]}"; do
+            extract_flags "$branch"
           done
 
       - name: Generate Comparison Markdown
         run: |
           declare -A branch_flags
 
-          # Load all extracted flags into associative arrays
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
           for branch in "${branches[@]}"; do
             declare -A flags
             while IFS='=' read -r key value; do
               flags["$key"]="$value"
-            done < "flags_$branch.txt"
+            done < "flags_${branch//\//_}.txt"
             branch_flags["$branch"]="${flags[@]}"
           done
 
-          # Begin Markdown content
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          # Function to print standalone feature flags for each branch
           print_standalone_flags() {
               local -n flags=$1
               local branch_name=$2
@@ -135,7 +125,6 @@ jobs:
               echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           }
 
-          # Function to create summary table with New, Updated, and Deleted flags
           generate_summary_table() {
               local -n current_flags=$1
               local -n previous_flags=$2
@@ -148,7 +137,6 @@ jobs:
               updated_changes=()
               deleted_changes=()
 
-              # Identify new, updated, and deleted flags
               for key in "${!current_flags[@]}"; do
                 current_value="${current_flags[$key]}"
                 previous_value="${previous_flags[$key]:-N/A}"
@@ -197,7 +185,6 @@ jobs:
               fi
           }
 
-          # Generate comparison tables in the requested order
           for ((i=1; i<${#branches[@]}; i++)); do
             current_branch="${branches[$i]}"
             previous_branch="${branches[$((i - 1))]}"

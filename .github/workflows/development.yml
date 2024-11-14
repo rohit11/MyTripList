@@ -185,7 +185,6 @@ jobs:
               echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           }
 
-          
 
           # Function to create summary table with New, Updated, and Deleted flags
           generate_summary_table() {

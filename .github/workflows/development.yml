@@ -1,4 +1,4 @@
-name: Develop Update Feature Flags Documentation
+name: Working Develop Update Feature Flags Documentation
 
 on:
   schedule:
@@ -145,7 +145,7 @@ jobs:
               fi
             done
             if [ "$deleted_found" = true ]; then
-              echo "## Deleted Values in $previous_branch (Compared to $current_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "## Deleted Values in $current_branch (Compared to $previous_branch)" >> ${{ env.FEATURE_FLAGS_DOC }}
               echo "| Count | $previous_branch Value | $current_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
               echo "|-------|------------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
               

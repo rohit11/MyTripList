@@ -1,11 +1,15 @@
 # Feature Flags Documentation
 
 ## New Values in release/1.0.1 (Compared to release/1.0.0)
-- `ENABLE_FEATURE_4` (Status: New 🔵, release/1.0.0: N/A)
-- `ENABLE_FEATURE_5` (Status: New 🔵, release/1.0.0: N/A)
+| Count | release/1.0.1 Value | release/1.0.0 Value | Status |
+|-------|------------------------|------------------------|--------|
+| 1 | `ENABLE_FEATURE_4` | N/A | New 🔵 |
+| 2 | `ENABLE_FEATURE_5` | N/A | New 🔵 |
 
 ## Deleted Values in release/1.0.0 (Compared to release/1.0.1)
-- `ENABLE_FEATURE_3` (Status: Deleted 🔴, release/1.0.1: N/A)
+| Count | release/1.0.0 Value | release/1.0.1 Value | Status |
+|-------|------------------------|------------------------|--------|
+| 1 | `ENABLE_FEATURE_3` | N/A | Deleted 🔴 |
 
 ## New Values in release/1.0.1 (Compared to main)
 - No new values found

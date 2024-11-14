@@ -71,7 +71,7 @@ function generateWorksheetName(name, existingNames) {
 // Function to export data to Excel with separate sheets for each parent key
 async function exportToExcel(dataByParentKey, outputPath) {
     const workbook = new ExcelJS.Workbook();
-    const existingNames = new Set(); // Track existing worksheet names to ensure uniqueness
+    const existingNames = new Set();
 
     const newStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } } }; // Green for New
     const notFoundStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } } }; // Red for Not Found
@@ -79,7 +79,6 @@ async function exportToExcel(dataByParentKey, outputPath) {
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
 
-        // Generate a unique worksheet name
         const sheetName = generateWorksheetName(parentKey, existingNames);
         const sheet = workbook.addWorksheet(sheetName);
 
@@ -112,6 +111,7 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
                         cell.fill = newStyle;
+                        cell.alignment = { wrapText: true }; // Enable text wrapping in cells
                     });
                     currentRow++;
                 });
@@ -135,6 +135,7 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
                         cell.fill = notFoundStyle;
+                        cell.alignment = { wrapText: true }; // Enable text wrapping in cells
                     });
                     currentRow++;
                 });
@@ -146,9 +147,9 @@ async function exportToExcel(dataByParentKey, outputPath) {
     console.log(`Excel exported to ${outputPath}`);
 }
 
-// Function to export data to PDF
+// Function to export data to PDF in table format
 async function exportToPDF(dataByParentKey, outputPath) {
-    const doc = new PDFDocument();
+    const doc = new PDFDocument({ autoFirstPage: false });
     doc.pipe(fs.createWriteStream(outputPath));
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
@@ -163,8 +164,12 @@ async function exportToPDF(dataByParentKey, outputPath) {
             if (newEntries.length > 0) {
                 doc.fontSize(12).text('New Entries', { underline: true }).moveDown();
                 const headers = Object.keys(newEntries[0]);
-                doc.fontSize(10).text(headers.join(' | '), { continued: false }).moveDown();
 
+                // Render table headers
+                doc.fontSize(10).text(headers.join(' | '));
+                doc.moveDown(0.5);
+
+                // Render each row in the table
                 newEntries.forEach(entry => {
                     const rowValues = headers.map(header => 
                         entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
@@ -177,8 +182,12 @@ async function exportToPDF(dataByParentKey, outputPath) {
             if (notFoundEntries.length > 0) {
                 doc.fontSize(12).text('Not Found Entries', { underline: true }).moveDown();
                 const headers = Object.keys(notFoundEntries[0]);
-                doc.fontSize(10).text(headers.join(' | '), { continued: false }).moveDown();
 
+                // Render table headers
+                doc.fontSize(10).text(headers.join(' | '));
+                doc.moveDown(0.5);
+
+                // Render each row in the table
                 notFoundEntries.forEach(entry => {
                     const rowValues = headers.map(header => 
                         entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''

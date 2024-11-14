@@ -110,43 +110,31 @@ jobs:
             local previous_branch=$4
 
             echo "## Comparison: $current_branch vs. $previous_branch" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|------------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
 
             # Find new, updated, and deleted values
             new_values=()
             deleted_values=()
-            updated_values=()
 
+            count=1
             for value in "${current_values[@]}"; do
               if [[ ! " ${previous_values[*]} " =~ " ${value} " ]]; then
                 new_values+=("$value")
+                echo "| $count | \`$value\` | N/A | New 🔵 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                ((count++))
               fi
             done
 
             for value in "${previous_values[@]}"; do
               if [[ ! " ${current_values[*]} " =~ " ${value} " ]]; then
                 deleted_values+=("$value")
+                echo "| $count | N/A | \`$value\` | Deleted 🔴 |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                ((count++))
               fi
             done
 
-            echo "### New Values" >> ${{ env.FEATURE_FLAGS_DOC }}
-            if [ ${#new_values[@]} -gt 0 ]; then
-              for value in "${new_values[@]}"; do
-                echo "- \`$value\`" >> ${{ env.FEATURE_FLAGS_DOC }}
-              done
-            else
-              echo "No new values." >> ${{ env.FEATURE_FLAGS_DOC }}
-            fi
-
             echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-            echo "### Deleted Values" >> ${{ env.FEATURE_FLAGS_DOC }}
-            if [ ${#deleted_values[@]} -gt 0 ]; then
-              for value in "${deleted_values[@]}"; do
-                echo "- \`$value\`" >> ${{ env.FEATURE_FLAGS_DOC }}
-              done
-            else
-              echo "No deleted values." >> ${{ env.FEATURE_FLAGS_DOC }}
-            fi
           }
 
           # Compare latest and previous release branches
@@ -157,6 +145,34 @@ jobs:
           # Compare latest release with main
           if [ -n "${latest_release_values[0]}" ]; then
             compare_values latest_release_values main_values "${{ steps.get-latest-release.outputs.latest_branch }}" "main"
+          fi
+
+          # Print standalone feature flags for each branch with count
+          print_all_values() {
+            local -n values=$1
+            local branch_name=$2
+
+            echo "## Feature Flags in \`$branch_name\`" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "| Count | $branch_name Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "|-------|---------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+            count=1
+            for value in "${values[@]}"; do
+              echo "| $count | \`$value\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              ((count++))
+            done
+            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          }
+
+          # Print all feature flag values for each branch
+          if [ -n "${latest_release_values[0]}" ]; then
+            print_all_values latest_release_values "${{ steps.get-latest-release.outputs.latest_branch }}"
+          fi
+          if [ -n "${previous_release_values[0]}" ]; then
+            print_all_values previous_release_values "${{ steps.get-latest-release.outputs.previous_branch }}"
+          fi
+          if [ -n "${main_values[0]}" ]; then
+            print_all_values main_values "main"
           fi
 
           echo "Generated FEATURE_FLAGS.md content:"

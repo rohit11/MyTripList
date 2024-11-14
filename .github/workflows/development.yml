@@ -6,13 +6,13 @@ on:
     - cron: '0 2 * * *'   # 6:00 PM PST
   push:
     paths:
-      - 'FeatureFlags.tsx'  # Trigger workflow only if FeatureFlags.tsx is modified
-  workflow_dispatch:  # Allow manual triggering of the workflow.      
+      - 'FeatureFlags.tsx'
+  workflow_dispatch:
 
 env:
   FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
-  NUM_RELEASE_BRANCHES: 2  # Number of recent release branches to compare with
+  NUM_RELEASE_BRANCHES: 2
 
 jobs:
   update-doc:
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all branches to ensure release branches are available
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -59,7 +59,7 @@ jobs:
         run: |
           function extract_flags {
             local branch=$1
-            local output_file="flags_${branch//\//_}.txt"  # Replace '/' with '_' in filename
+            local output_file="flags_${branch//\//_}.txt"
 
             if [ -n "$branch" ]; then
               git checkout "$branch"
@@ -94,15 +94,14 @@ jobs:
           done
 
       - name: Switch Back to Main Branch
-        run: |
-          git checkout main
-          echo "Switched back to main branch for documentation generation."
+        run: git checkout main
 
       - name: Generate Comparison Markdown
         run: |
           declare -A branch_flags
-
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
+
+          # Load flags into associative arrays
           for branch in "${branches[@]}"; do
             declare -A flags
             while IFS='=' read -r key value; do
@@ -114,94 +113,41 @@ jobs:
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          print_standalone_flags() {
-              local -n flags=$1
-              local branch_name=$2
+          # Comparison function
+          compare_flags() {
+            local -n current_flags=$1
+            local -n previous_flags=$2
+            local current_branch=$3
+            local previous_branch=$4
 
-              echo "## Feature Flags in \`$branch_name\`" >> ${{ env.FEATURE_FLAGS_DOC }}
-              echo "| Count | $branch_name Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
-              echo "|-------|---------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+            echo "## Comparison: $current_branch vs. $previous_branch" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-              count=1
-              for key in "${!flags[@]}"; do
-                echo "| $count | \`${flags[$key]}\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                ((count++))
-              done
-              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          }
+            for key in "${!current_flags[@]}"; do
+              current_value="${current_flags[$key]}"
+              previous_value="${previous_flags[$key]:-N/A}"
 
-          generate_summary_table() {
-              local -n current_flags=$1
-              local -n previous_flags=$2
-              local current_branch=$3
-              local previous_branch=$4
-
-              echo "## Comparison: $current_branch vs. $previous_branch (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-              new_changes=()
-              updated_changes=()
-              deleted_changes=()
-
-              for key in "${!current_flags[@]}"; do
-                current_value="${current_flags[$key]}"
-                previous_value="${previous_flags[$key]:-N/A}"
-
-                if [[ "$previous_value" == "N/A" ]]; then
-                  new_changes+=("| \`$current_value\` | N/A | New 🔵 |")
-                elif [[ "$current_value" != "$previous_value" ]]; then
-                  updated_changes+=("| \`$current_value\` | \`$previous_value\` | Updated 🟡 |")
-                fi
-              done
-
-              for key in "${!previous_flags[@]}"; do
-                if [[ -z "${current_flags[$key]}" ]]; then
-                  deleted_changes+=("| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |")
-                fi
-              done
-
-              if [ ${#new_changes[@]} -gt 0 ]; then
-                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-              else
-                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              if [[ "$previous_value" == "N/A" ]]; then
+                echo "| New Flag | \`$key\` | \`$current_value\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              elif [[ "$current_value" != "$previous_value" ]]; then
+                echo "| Updated Flag | \`$key\` | \`$current_value\` (was \`$previous_value\`) |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
+            done
 
-              if [ ${#updated_changes[@]} -gt 0 ]; then
-                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-              else
-                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+            for key in "${!previous_flags[@]}"; do
+              if [[ -z "${current_flags[$key]}" ]]; then
+                echo "| Deleted Flag | \`$key\` | \`$previous_flags[$key]\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
               fi
-
-              if [ ${#deleted_changes[@]} -gt 0 ]; then
-                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| $current_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-                printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-              else
-                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
-              fi
+            done
           }
 
           for ((i=1; i<${#branches[@]}; i++)); do
             current_branch="${branches[$i]}"
             previous_branch="${branches[$((i - 1))]}"
-            generate_summary_table "branch_flags[$current_branch]" "branch_flags[$previous_branch]" "$current_branch" "$previous_branch"
+            compare_flags "branch_flags[$current_branch]" "branch_flags[$previous_branch]" "$current_branch" "$previous_branch"
           done
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
-
-      - name: Cleanup Temporary Files
-        run: |
-          rm -f flags_*.txt
 
       - name: Commit and Push Changes
         run: |
@@ -212,24 +158,3 @@ jobs:
           git push || echo "Nothing to push"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Set up Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    
-      - name: Clone the Wiki
-        run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rohit11/MyTripList.wiki.git wiki
-
-      - name: Update Feature Flags page
-        run: |
-          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md
-          
-      - name: Clean up
-        run: rm -rf wiki

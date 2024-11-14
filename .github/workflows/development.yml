@@ -35,8 +35,8 @@ jobs:
           echo "Listing all remote branches:"
           git branch -r
 
-          # Initialize branches array with main as the starting branch
-          branches=("main")
+          # Initialize an empty branches array for release branches
+          branches=()
 
           # Find and sort release branches by semantic version
           release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
@@ -53,7 +53,7 @@ jobs:
             branches+=("${sorted_branches[-$i]}")
           done
 
-          echo "Branches to compare (latest to main): ${branches[*]}"
+          echo "Release branches to compare (latest to oldest): ${branches[*]}"
           echo "branches=${branches[*]}" >> $GITHUB_OUTPUT
 
       - name: Extract Feature Flags for Each Branch
@@ -90,21 +90,21 @@ jobs:
             cat "$output_file" || echo "No flags extracted from $branch"
           }
 
-          # Extract flags for each branch and store in separate files
+          # Extract flags for each release branch and store in separate files
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
           for branch in "${branches[@]}"; do
             extract_flags "$branch" "flags_${branch//\//_}.txt"
           done
 
-      - name: Switch Back to Main Branch
-        run: git checkout main
+          # Extract flags for main branch separately for final comparison
+          extract_flags "main" "flags_main.txt"
 
       - name: Generate Comparison Markdown
         run: |
           declare -A branch_flags
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
 
-          # Load flags for each branch from files into associative arrays
+          # Load flags for each release branch from files into associative arrays
           for branch in "${branches[@]}"; do
             declare -A flags
             while IFS='=' read -r key value; do
@@ -143,12 +143,20 @@ jobs:
             done
           }
 
-          # Perform comparisons in sequence based on the selected branches
+          # Perform comparisons in sequence among release branches
           for ((i=1; i<${#branches[@]}; i++)); do
             current_branch="${branches[$i]}"
             previous_branch="${branches[$((i - 1))]}"
             compare_flags "branch_flags[$current_branch]" "branch_flags[$previous_branch]" "$current_branch" "$previous_branch"
           done
+
+          # Separate comparison of latest release branch with main branch
+          latest_release_branch="${branches[0]}"
+          declare -A main_flags
+          while IFS='=' read -r key value; do
+            main_flags["$key"]="$value"
+          done < "flags_main.txt"
+          compare_flags "branch_flags[$latest_release_branch]" "main_flags" "$latest_release_branch" "main"
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}

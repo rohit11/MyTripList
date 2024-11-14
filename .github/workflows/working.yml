@@ -1,4 +1,4 @@
-name: Working Update Feature Flags Documentation
+name: Develop Update Feature Flags Documentation
 
 on:
   schedule:
@@ -7,10 +7,10 @@ on:
   push:
     paths:
       - 'FeatureFlags.tsx'  # Trigger workflow only if FeatureFlags.tsx is modified
-  workflow_dispatch:  # Allow manual triggering of the workflow
+  workflow_dispatch:  # Allow manual triggering of the workflow.      
 
 env:
-  FEATURE_FLAGS_DOC: "FEATURE_FLAGS.md"
+  FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
 
 jobs:
@@ -28,204 +28,186 @@ jobs:
         with:
           node-version: '20'
 
-      - name: List All Branches and Get Latest Release Branch
+      - name: List All Branches and Get Latest Release Branches
         id: get-latest-release
         run: |
           echo "Listing all remote branches:"
           git branch -r
           
-          # Attempt to find the latest release branch
-          latest_release=$(git branch -r --sort=-committerdate | grep 'origin/release/' | head -n 1 | sed 's|origin/||')
-          if [ -z "$latest_release" ]; then
-            echo "No release branch found matching 'release/*'"
-            echo "branch=" >> $GITHUB_OUTPUT
+          release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
+
+          sorted_branches=($(for branch in "${release_branches[@]}"; do
+            echo "$branch"
+          done | sort -V))
+
+          if [ ${#sorted_branches[@]} -eq 0 ]; then
+            echo "No valid release branches found."
+            echo "latest_branch=" >> $GITHUB_OUTPUT
+            echo "previous_branch=" >> $GITHUB_OUTPUT
+          elif [ ${#sorted_branches[@]} -eq 1 ]; then
+            latest_release="${sorted_branches[0]}"
+            echo "Only one release branch found: $latest_release"
+            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
+            echo "previous_branch=" >> $GITHUB_OUTPUT
           else
+            latest_release="${sorted_branches[-1]}"
+            previous_release="${sorted_branches[-2]}"
             echo "Latest release branch found: $latest_release"
-            echo "branch=$latest_release" >> $GITHUB_OUTPUT
+            echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
+            echo "Previous release branch found: $previous_release"
+            echo "previous_branch=$previous_release" >> $GITHUB_OUTPUT
           fi
 
-      - name: Extract Feature Flags from Latest Release Branch (if available)
-        id: extract-release-flags
+      - name: Extract Feature Flags
+        id: extract-flags
         run: |
-          if [ -n "${{ steps.get-latest-release.outputs.branch }}" ]; then
-            git checkout ${{ steps.get-latest-release.outputs.branch }}
-            node -e "
-              const fs = require('fs');
-              const path = require('path');
-              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-              if (!match || !match[1]) {
-                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-                process.exit(1);
-              }
-              const objectContent = '{' + match[1].trim() + '}';
-              const FeatureFlagMapping = eval('(' + objectContent + ')');
-              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-                console.log(\`\${key}=\${value}\`);
-              }
-            " > release_flags.txt
-          else
-            echo "No release branch available. Skipping release flag extraction."
-            touch release_flags.txt  # Create an empty file for consistency
-          fi
-          echo "Release flags extracted:"
-          cat release_flags.txt || echo "No flags extracted from release branch"
+          function extract_flags {
+            local branch=$1
+            local output_file=$2
 
-      - name: Extract Feature Flags from Main Branch
-        id: extract-main-flags
-        run: |
-          git checkout main
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-              process.exit(1);
-            }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-              console.log(\`\${key}=\${value}\`);
-            }
-          " > main_flags.txt
-          echo "Main branch flags extracted:"
-          cat main_flags.txt || echo "No flags extracted from main branch"
+            if [ -n "$branch" ]; then
+              git checkout "$branch"
+              node -e "
+                const fs = require('fs');
+                const path = require('path');
+                const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+                const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+                const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+                if (!match || !match[1]) {
+                  console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                  process.exit(1);
+                }
+                const objectContent = '{' + match[1].trim() + '}';
+                const FeatureFlagMapping = eval('(' + objectContent + ')');
+                for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                  console.log(\`\${key}=\${value}\`);
+                }
+              " > "$output_file"
+            else
+              echo "Branch $branch is not available. Skipping flag extraction."
+              touch "$output_file"
+            fi
+
+            echo "Flags extracted from $branch:"
+            cat "$output_file" || echo "No flags extracted from $branch"
+          }
+
+          extract_flags "${{ steps.get-latest-release.outputs.latest_branch }}" latest_release_flags.txt
+          extract_flags "${{ steps.get-latest-release.outputs.previous_branch }}" previous_release_flags.txt
+          extract_flags "main" main_flags.txt
+
       - name: Generate Comparison Markdown
         run: |
-          # Initialize associative arrays for release and main flags
-          declare -A release_flags main_flags
-          
-          # Populate arrays with release branch flags
-          while IFS='=' read -r key value; do
-            release_flags["$key"]="$value"
-          done < release_flags.txt
+          declare -A latest_release_flags previous_release_flags main_flags
 
-          # Populate arrays with main branch flags
+          while IFS='=' read -r key value; do
+            latest_release_flags["$key"]="$value"
+          done < latest_release_flags.txt
+
+          while IFS='=' read -r key value; do
+            previous_release_flags["$key"]="$value"
+          done < previous_release_flags.txt
+
           while IFS='=' read -r key value; do
             main_flags["$key"]="$value"
           done < main_flags.txt
 
-          # Begin Markdown content
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          release_branch="${{ steps.get-latest-release.outputs.branch }}"
-          if [ -n "$release_branch" ]; then
-            echo "> **Comparison between \`main\` and \`$release_branch\`**" >> ${{ env.FEATURE_FLAGS_DOC }}
-            release_column="Release Value (\`$release_branch\`)"
-          else
-            echo "> **No release branch found; only main branch feature flags are displayed.**" >> ${{ env.FEATURE_FLAGS_DOC }}
-            release_column="Release Value (latest release)"
+          latest_branch="${{ steps.get-latest-release.outputs.latest_branch }}"
+          previous_branch="${{ steps.get-latest-release.outputs.previous_branch }}"
+
+          print_standalone_flags() {
+              local -n flags=$1
+              local branch_name=$2
+
+              echo "## Feature Flags in \`$branch_name\`" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "| Count | $branch_name Value |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              echo "|-------|---------------------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+              count=1
+              for key in "${!flags[@]}"; do
+                echo "| $count | \`${flags[$key]}\` |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                ((count++))
+              done
+              echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
+          }
+
+          generate_summary_table() {
+              local -n latest_flags=$1
+              local -n previous_flags=$2
+              local latest_branch=$3
+              local previous_branch=$4
+              local section_title=$5
+
+              echo "## $section_title (New, Updated, Deleted Flags)" >> ${{ env.FEATURE_FLAGS_DOC }}
+
+              new_changes=()
+              updated_changes=()
+              deleted_changes=()
+
+              for key in "${!latest_flags[@]}"; do
+                latest_value="${latest_flags[$key]}"
+                previous_value="${previous_flags[$key]:-N/A}"
+
+                if [[ "$previous_value" == "N/A" ]]; then
+                  new_changes+=("| \`$latest_value\` | N/A | New 🔵 |")
+                elif [[ "$latest_value" != "$previous_value" ]]; then
+                  updated_changes+=("| \`$latest_value\` | \`$previous_value\` | Updated 🟡 |")
+                fi
+              done
+
+              for key in "${!previous_flags[@]}"; do
+                if [[ -z "${latest_flags[$key]}" ]]; then
+                  deleted_changes+=("| N/A | \`${previous_flags[$key]}\` | Deleted 🔴 |")
+                fi
+              done
+
+              if [ ${#new_changes[@]} -gt 0 ]; then
+                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+
+              if [ ${#updated_changes[@]} -gt 0 ]; then
+                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+
+              if [ ${#deleted_changes[@]} -gt 0 ]; then
+                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "|----------------------|------------------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
+                printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
+              else
+                echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
+                echo "| No differences found |" >> ${{ env.FEATURE_FLAGS_DOC }}
+              fi
+          }
+
+          if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
+            generate_summary_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Comparison: $latest_branch vs. $previous_branch"
+            generate_summary_table main_flags latest_release_flags "main" "$latest_branch" "Comparison: main vs. $latest_branch"
+            print_standalone_flags latest_release_flags "$latest_branch"
+            print_standalone_flags main_flags "main"
           fi
-          echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          # Separate sections for New, Updated, Deleted flags
-          echo "## Summary of Changes" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-          # Track changes in New, Updated, Deleted arrays
-          new_changes=()
-          updated_changes=()
-          deleted_changes=()
-
-          # Process keys in release_flags first
-          for key in "${!release_flags[@]}"; do
-            release_value="${release_flags[$key]}"
-            main_value="${main_flags[$key]:-N/A}"
-
-            if [[ "$main_value" == "N/A" ]]; then
-              # Key exists in release_flags but not in main_flags, so it's deleted
-              deleted_changes+=("| $key | \`$release_value\` | N/A | **Deleted 🔴** |")
-            elif [[ "$release_value" != "$main_value" ]]; then
-              # Key exists in both but values are different, so it's updated
-              updated_changes+=("| $key | \`$release_value\` | \`$main_value\` | **Updated 🟡** |")
-            fi
-          done
-
-          # Process remaining keys in main_flags that weren't in release_flags
-          for key in "${!main_flags[@]}"; do
-            if [[ -z "${release_flags[$key]}" ]]; then
-              main_value="${main_flags[$key]}"
-              # Key is new in main_flags, so it's added as New
-              new_changes+=("| $key | N/A | \`$main_value\` | **New 🔵** |")
-            fi
-          done
-
-          # Output Summary of Changes
-          if [ ${#new_changes[@]} -gt 0 ]; then
-            echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "| Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-            printf "%s\n" "${new_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          fi
-
-          if [ ${#updated_changes[@]} -gt 0 ]; then
-            echo "### Updated Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "| Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-            printf "%s\n" "${updated_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          fi
-
-          if [ ${#deleted_changes[@]} -gt 0 ]; then
-            echo "### Deleted Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "| Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-            printf "%s\n" "${deleted_changes[@]}" >> ${{ env.FEATURE_FLAGS_DOC }}
-            echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
-          fi
-
-          # Full Comparison Table
-          echo "## Full Feature Flags Comparison" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "| Count | Key | $release_column | Main Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
-          echo "|-------|-----|-----------------|------------|--------|" >> ${{ env.FEATURE_FLAGS_DOC }}
-
-          # Track processed keys to avoid duplicates in full table
-          declare -A seen_keys
-          count=1
-
-          # Full table with release_flags first
-          for key in "${!release_flags[@]}"; do
-            release_value="${release_flags[$key]}"
-            main_value="${main_flags[$key]:-N/A}"
-            status=""
-
-            if [[ "$main_value" == "N/A" ]]; then
-              status="Deleted 🔴"
-            elif [[ "$release_value" != "$main_value" ]]; then
-              status="Updated 🟡"
-            else
-              status="Unchanged ⚪"
-            fi
-
-            echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
-            seen_keys["$key"]=1
-            ((count++))
-          done
-
-          # Append remaining keys from main_flags
-          for key in "${!main_flags[@]}"; do
-            if [[ -z "${seen_keys[$key]}" ]]; then
-              release_value="N/A"
-              main_value="${main_flags[$key]}"
-              status="New 🔵"
-
-              echo "| $count | $key | \`$release_value\` | \`$main_value\` | **$status** |" >> ${{ env.FEATURE_FLAGS_DOC }}
-              ((count++))
-            fi
-          done
-
-          # Display the generated FEATURE_FLAGS.md for debugging
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
-          
+
       - name: Cleanup Temporary Files
         run: |
-          rm -f main_flags.txt release_flags.txt
+          rm -f main_flags.txt latest_release_flags.txt previous_release_flags.txt
 
       - name: Commit and Push Changes
         run: |
@@ -236,3 +218,24 @@ jobs:
           git push || echo "Nothing to push"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
+      - name: Clone the Wiki
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rohit11/MyTripList.wiki.git wiki
+
+      - name: Update Feature Flags page
+        run: |
+          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md
+          
+      - name: Clean up
+        run: rm -rf wiki

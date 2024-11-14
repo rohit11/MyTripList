@@ -82,9 +82,9 @@ jobs:
                 // Extract values from FeatureFlagMapping object
                 const objectContent = '{' + mappingMatch[1].trim() + '}';
                 const FeatureFlagMapping = eval('(' + objectContent + ')');
-                for (const value of Object.values(FeatureFlagMapping)) {
+                Object.values(FeatureFlagMapping).forEach(value => {
                   console.log(`\${value}=\${value}`);
-                }
+                });
               } else if (enumMatch && enumMatch[1]) {
                 // Extract values from enum (assumes values in 'FeatureFlag')
                 const values = enumMatch[1]

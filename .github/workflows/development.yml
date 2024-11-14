@@ -1,4 +1,4 @@
-name: Develop Update Feature Flags Documentation
+name: Working Develop Update Feature Flags Documentation
 
 on:
   schedule:
@@ -6,13 +6,13 @@ on:
     - cron: '0 2 * * *'   # 6:00 PM PST
   push:
     paths:
-      - 'FeatureFlags.tsx'
-  workflow_dispatch:
+      - 'FeatureFlags.tsx'  # Trigger workflow only if FeatureFlags.tsx is modified
+  workflow_dispatch:  # Allow manual triggering of the workflow.
 
 env:
   FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
   FEATURE_FLAG_FILE: "FeatureFlags.tsx"
-  NUM_RELEASE_BRANCHES: 2
+  NUM_RELEASE_BRANCHES: 3  # Number of recent release branches to compare with
 
 jobs:
   update-doc:
@@ -22,31 +22,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all branches to ensure release branches are available
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      - name: List All Branches and Get Release Branches
+      - name: List All Branches and Get Latest Release Branches
         id: get-release-branches
         run: |
           echo "Listing all remote branches:"
           git branch -r
 
+          # Initialize branches array with main as the starting branch
           branches=("main")
 
+          # Find and sort release branches by semantic version
           release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
-          sorted_branches=($(for branch in "${release_branches[@]}"; do
-            echo "$branch"
-          done | sort -V))
+          sorted_branches=($(for branch in "${release_branches[@]}"; do echo "$branch"; done | sort -V))
 
+          # Determine the number of branches to retrieve based on NUM_RELEASE_BRANCHES or available count
           num_branches=${{ env.NUM_RELEASE_BRANCHES }}
           if [ ${#sorted_branches[@]} -lt "$num_branches" ]; then
             num_branches=${#sorted_branches[@]}
           fi
 
+          # Add the last N sorted release branches to branches array
           for ((i=1; i<=num_branches; i++)); do
             branches+=("${sorted_branches[-$i]}")
           done
@@ -59,7 +61,7 @@ jobs:
         run: |
           function extract_flags {
             local branch=$1
-            local output_file="flags_${branch//\//_}.txt"
+            local output_file=$2
 
             if [ -n "$branch" ]; then
               git checkout "$branch"
@@ -88,9 +90,10 @@ jobs:
             cat "$output_file" || echo "No flags extracted from $branch"
           }
 
+          # Extract flags for each branch and store in separate files
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
           for branch in "${branches[@]}"; do
-            extract_flags "$branch"
+            extract_flags "$branch" "flags_${branch//\//_}.txt"
           done
 
       - name: Switch Back to Main Branch
@@ -101,7 +104,7 @@ jobs:
           declare -A branch_flags
           IFS=' ' read -r -a branches <<< "${{ steps.get-release-branches.outputs.branches }}"
 
-          # Load flags into associative arrays
+          # Load flags for each branch from files into associative arrays
           for branch in "${branches[@]}"; do
             declare -A flags
             while IFS='=' read -r key value; do
@@ -113,7 +116,7 @@ jobs:
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
-          # Comparison function
+          # Define comparison function to compare flags between branches
           compare_flags() {
             local -n current_flags=$1
             local -n previous_flags=$2
@@ -140,6 +143,7 @@ jobs:
             done
           }
 
+          # Perform comparisons in sequence based on the selected branches
           for ((i=1; i<${#branches[@]}; i++)); do
             current_branch="${branches[$i]}"
             previous_branch="${branches[$((i - 1))]}"
@@ -148,6 +152,10 @@ jobs:
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
+
+      - name: Cleanup Temporary Files
+        run: |
+          rm -f flags_*.txt
 
       - name: Commit and Push Changes
         run: |

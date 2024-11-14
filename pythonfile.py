@@ -110,3 +110,43 @@ changes = categorize_changes_by_parent_key(old_data, new_data)
 
 # Export to Excel
 export_changes_to_excel(changes, 'json_differences.xlsx')
+
+from collections import defaultdict
+from deepdiff import DeepDiff
+
+def categorize_changes_by_parent_key(old_data, new_data):
+    diff = DeepDiff(old_data, new_data, ignore_order=True)
+    changes_by_parent_key = defaultdict(list)
+
+    def get_parent_key(path):
+        # Extract the parent key (first part of the path) for categorization
+        return path.split('.')[0] if '.' in path else path
+
+    # Process Added items (New rows)
+    if 'dictionary_item_added' in diff:
+        for item in diff['dictionary_item_added']:
+            parent_key = get_parent_key(item)
+            changes_by_parent_key[parent_key].append({
+                'Key': item, 'Type': 'New', 'Value': diff['dictionary_item_added']
+            })
+
+    # Process Changed items (Updated rows)
+    if 'values_changed' in diff:
+        for item, change in diff['values_changed'].items():
+            parent_key = get_parent_key(item)
+            changes_by_parent_key[parent_key].append({
+                'Key': item, 
+                'Type': 'Updated', 
+                'Old Value': change['old_value'], 
+                'New Value': change['new_value']
+            })
+
+    # Process Deleted items (Deleted rows)
+    if 'dictionary_item_removed' in diff:
+        for item in diff['dictionary_item_removed']:
+            parent_key = get_parent_key(item)
+            changes_by_parent_key[parent_key].append({
+                'Key': item, 'Type': 'Deleted', 'Value': diff['dictionary_item_removed']
+            })
+
+    return changes_by_parent_key

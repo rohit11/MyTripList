@@ -7,7 +7,7 @@ on:
   push:
     paths:
       - 'FeatureFlags.tsx'  # Trigger workflow only if FeatureFlags.tsx is modified
-  workflow_dispatch:  # Allow manual triggering of the workflow
+  workflow_dispatch:  # Allow manual triggering of the workflow.      
 
 env:
   FEATURE_FLAGS_DOC: "docs/FEATURE_FLAGS.md"
@@ -34,27 +34,22 @@ jobs:
           echo "Listing all remote branches:"
           git branch -r
           
-          # Find all branches in the format 'release/v{x.x.x}'
           release_branches=($(git branch -r | grep 'origin/release/' | grep -E 'origin/release/[0-9]+\.[0-9]+\.[0-9]+' | sed 's|origin/||'))
 
-          # Sort branches by semantic versioning
           sorted_branches=($(for branch in "${release_branches[@]}"; do
             echo "$branch"
           done | sort -V))
 
-          # Check if we have at least one release branch
           if [ ${#sorted_branches[@]} -eq 0 ]; then
             echo "No valid release branches found."
             echo "latest_branch=" >> $GITHUB_OUTPUT
             echo "previous_branch=" >> $GITHUB_OUTPUT
           elif [ ${#sorted_branches[@]} -eq 1 ]; then
-            # Only one release branch is available
             latest_release="${sorted_branches[0]}"
             echo "Only one release branch found: $latest_release"
             echo "latest_branch=$latest_release" >> $GITHUB_OUTPUT
             echo "previous_branch=" >> $GITHUB_OUTPUT
           else
-            # At least two release branches are available
             latest_release="${sorted_branches[-1]}"
             previous_release="${sorted_branches[-2]}"
             echo "Latest release branch found: $latest_release"
@@ -63,92 +58,48 @@ jobs:
             echo "previous_branch=$previous_release" >> $GITHUB_OUTPUT
           fi
 
-
-      - name: Extract Feature Flags from Latest Release Branch (if available)
-        id: extract-latest-release-flags
+      - name: Extract Feature Flags
+        id: extract-flags
         run: |
-          if [ -n "${{ steps.get-latest-release.outputs.latest_branch }}" ]; then
-            git checkout ${{ steps.get-latest-release.outputs.latest_branch }}
-            node -e "
-              const fs = require('fs');
-              const path = require('path');
-              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-              if (!match || !match[1]) {
-                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-                process.exit(1);
-              }
-              const objectContent = '{' + match[1].trim() + '}';
-              const FeatureFlagMapping = eval('(' + objectContent + ')');
-              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-                console.log(\`\${key}=\${value}\`);
-              }
-            " > latest_release_flags.txt
-          else
-            echo "No latest release branch available. Skipping flag extraction."
-            touch latest_release_flags.txt
-          fi
-          echo "Latest release flags extracted:"
-          cat latest_release_flags.txt || echo "No flags extracted from latest release branch"
+          function extract_flags {
+            local branch=$1
+            local output_file=$2
 
-      - name: Extract Feature Flags from Previous Release Branch (if available)
-        id: extract-previous-release-flags
-        run: |
-          if [ -n "${{ steps.get-latest-release.outputs.previous_branch }}" ]; then
-            git checkout ${{ steps.get-latest-release.outputs.previous_branch }}
-            node -e "
-              const fs = require('fs');
-              const path = require('path');
-              const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-              const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-              const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-              if (!match || !match[1]) {
-                console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-                process.exit(1);
-              }
-              const objectContent = '{' + match[1].trim() + '}';
-              const FeatureFlagMapping = eval('(' + objectContent + ')');
-              for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-                console.log(\`\${key}=\${value}\`);
-              }
-            " > previous_release_flags.txt
-          else
-            echo "No previous release branch available. Skipping flag extraction."
-            touch previous_release_flags.txt
-          fi
-          echo "Previous release flags extracted:"
-          cat previous_release_flags.txt || echo "No flags extracted from previous release branch"
+            if [ -n "$branch" ]; then
+              git checkout "$branch"
+              node -e "
+                const fs = require('fs');
+                const path = require('path');
+                const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
+                const content = fs.readFileSync(featureFlagFilePath, 'utf8');
+                const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
+                if (!match || !match[1]) {
+                  console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
+                  process.exit(1);
+                }
+                const objectContent = '{' + match[1].trim() + '}';
+                const FeatureFlagMapping = eval('(' + objectContent + ')');
+                for (const [key, value] of Object.entries(FeatureFlagMapping)) {
+                  console.log(\`\${key}=\${value}\`);
+                }
+              " > "$output_file"
+            else
+              echo "Branch $branch is not available. Skipping flag extraction."
+              touch "$output_file"
+            fi
 
-      - name: Extract Feature Flags from Main Branch
-        id: extract-main-flags
-        run: |
-          git checkout main
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const featureFlagFilePath = path.resolve(__dirname, process.env.FEATURE_FLAG_FILE || 'FeatureFlags.tsx');
-            const content = fs.readFileSync(featureFlagFilePath, 'utf8');
-            const match = content.match(/export const FeatureFlagMapping =\\s*{([\\s\\S]+?)}/);
-            if (!match || !match[1]) {
-              console.error('FeatureFlagMapping object not found in FeatureFlags.tsx');
-              process.exit(1);
-            }
-            const objectContent = '{' + match[1].trim() + '}';
-            const FeatureFlagMapping = eval('(' + objectContent + ')');
-            for (const [key, value] of Object.entries(FeatureFlagMapping)) {
-              console.log(\`\${key}=\${value}\`);
-            }
-          " > main_flags.txt
-          echo "Main branch flags extracted:"
-          cat main_flags.txt || echo "No flags extracted from main branch"
+            echo "Flags extracted from $branch:"
+            cat "$output_file" || echo "No flags extracted from $branch"
+          }
+
+          extract_flags "${{ steps.get-latest-release.outputs.latest_branch }}" latest_release_flags.txt
+          extract_flags "${{ steps.get-latest-release.outputs.previous_branch }}" previous_release_flags.txt
+          extract_flags "main" main_flags.txt
 
       - name: Generate Comparison Markdown
         run: |
-          # Initialize associative arrays for release, previous release, and main flags
           declare -A latest_release_flags previous_release_flags main_flags
 
-          # Populate arrays with extracted flags
           while IFS='=' read -r key value; do
             latest_release_flags["$key"]="$value"
           done < latest_release_flags.txt
@@ -161,14 +112,12 @@ jobs:
             main_flags["$key"]="$value"
           done < main_flags.txt
 
-          # Begin Markdown content
           echo "# Feature Flags Documentation" > ${{ env.FEATURE_FLAGS_DOC }}
           echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
 
           latest_branch="${{ steps.get-latest-release.outputs.latest_branch }}"
           previous_branch="${{ steps.get-latest-release.outputs.previous_branch }}"
 
-           # Function to print standalone feature flags for each branch
           print_standalone_flags() {
               local -n flags=$1
               local branch_name=$2
@@ -185,8 +134,6 @@ jobs:
               echo "" >> ${{ env.FEATURE_FLAGS_DOC }}
           }
 
-
-          # Function to create summary table with New, Updated, and Deleted flags
           generate_summary_table() {
               local -n latest_flags=$1
               local -n previous_flags=$2
@@ -200,7 +147,6 @@ jobs:
               updated_changes=()
               deleted_changes=()
 
-              # Identify new, updated, and deleted flags
               for key in "${!latest_flags[@]}"; do
                 latest_value="${latest_flags[$key]}"
                 previous_value="${previous_flags[$key]:-N/A}"
@@ -218,7 +164,6 @@ jobs:
                 fi
               done
 
-              # Output New, Updated, and Deleted tables with a message if no differences
               if [ ${#new_changes[@]} -gt 0 ]; then
                 echo "### New Flags" >> ${{ env.FEATURE_FLAGS_DOC }}
                 echo "| $latest_branch Value | $previous_branch Value | Status |" >> ${{ env.FEATURE_FLAGS_DOC }}
@@ -250,16 +195,12 @@ jobs:
               fi
           }
 
-          
-
-          # Generate summary and full comparison tables in requested order
           if [ -n "$latest_branch" ] && [ -n "$previous_branch" ]; then
             generate_summary_table latest_release_flags previous_release_flags "$latest_branch" "$previous_branch" "Comparison: $latest_branch vs. $previous_branch"
             generate_summary_table main_flags latest_release_flags "main" "$latest_branch" "Comparison: main vs. $latest_branch"
             print_standalone_flags latest_release_flags "$latest_branch"
             print_standalone_flags main_flags "main"
           fi
-          
 
           echo "Generated FEATURE_FLAGS.md content:"
           cat ${{ env.FEATURE_FLAGS_DOC }}
@@ -278,7 +219,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -295,11 +235,7 @@ jobs:
 
       - name: Update Feature Flags page
         run: |
-          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md  # Copy the updated content to the Wiki
-          #cd wiki
-          #git add Feature-Flags.md
-          #$git commit -m "Update Feature Flags documentation"
-          #$git push origin master
-
+          cp docs/FEATURE_FLAGS.md wiki/Feature-Flags.md
+          
       - name: Clean up
-        run: rm -rf wiki     
+        run: rm -rf wiki

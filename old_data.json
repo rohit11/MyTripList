@@ -10,6 +10,17 @@
       "icon": "tube",
       "coverageType": "M",
       "enableMemberRelevancy": true
+    },
+    "60": {
+      "keyword": "Old Keyword",
+      "category": "Old Category",
+      "score": 65786,
+      "psxKeyword": "Dermatologist",
+      "pesKeyword": "02-012-007",
+      "searchType": "Specialty",
+      "icon": "tube",
+      "coverageType": "M",
+      "enableMemberRelevancy": true
     }
   }
 }

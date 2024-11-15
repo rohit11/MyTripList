@@ -174,7 +174,7 @@ async function exportToHtml(dataByParentKey, outputPath) {
     console.log(`HTML exported to ${outputPath}`);
 }
 
-// Function to export data to CSV
+// Function to export data to CSV (single CSV file for each parent key with sections)
 function exportToCsv(dataByParentKey, outputDir) {
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir);
@@ -182,22 +182,24 @@ function exportToCsv(dataByParentKey, outputDir) {
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
+        const csvFilePath = path.join(outputDir, `${parentKey}_entries.csv`);
+
+        let csvContent = '';
 
         if (newEntries.length > 0) {
-            const newCsvPath = path.join(outputDir, `${parentKey}_new_entries.csv`);
-            const parser = new Parser();
-            const csv = parser.parse(newEntries);
-            fs.writeFileSync(newCsvPath, csv);
-            console.log(`CSV exported to ${newCsvPath}`);
+            csvContent += 'New Entries\n';
+            const parser = new Parser({ header: true });
+            csvContent += parser.parse(newEntries) + '\n\n';
         }
 
         if (notFoundEntries.length > 0) {
-            const notFoundCsvPath = path.join(outputDir, `${parentKey}_not_found_entries.csv`);
-            const parser = new Parser();
-            const csv = parser.parse(notFoundEntries);
-            fs.writeFileSync(notFoundCsvPath, csv);
-            console.log(`CSV exported to ${notFoundCsvPath}`);
+            csvContent += 'Not Found Entries\n';
+            const parser = new Parser({ header: true });
+            csvContent += parser.parse(notFoundEntries) + '\n';
         }
+
+        fs.writeFileSync(csvFilePath, csvContent);
+        console.log(`CSV exported to ${csvFilePath}`);
     }
 }
 
@@ -244,4 +246,4 @@ async function main() {
 }
 
 // Run the main function
-main().catch(error => console.error('Error in
+main().catch(error => console.error('Error in main function:', error));

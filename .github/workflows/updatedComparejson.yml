@@ -136,7 +136,7 @@ jobs:
                 const sheet = workbook.addWorksheet(uniqueName);
 
                 // Add Parent Key Header
-                sheet.addRow(parentKey]);
+                sheet.addRow([parentKey]);
                 sheet.addRow([]); // Blank row for spacing
 
                 // Add New Entries Table with headers

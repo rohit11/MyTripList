@@ -89,8 +89,8 @@ jobs:
                     notFoundEntries.push({ key, ...oldObj[key] });
                   } else if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
                     const diffRows = [
-                      { key, diff_type: "Old Value", ...oldObj[key] },
-                      { key: '', diff_type: "New Value", ...newObj[key] }
+                      { key, ...oldObj[key] },
+                      { key: '', ...newObj[key] }
                     ];
                     differentEntries.push(...diffRows);
                   }

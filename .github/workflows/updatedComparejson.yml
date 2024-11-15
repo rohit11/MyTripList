@@ -1,82 +1,70 @@
-name: Compare JSON Files
+name: New Compare JSON Files
 
 on:
   workflow_dispatch:
     inputs:
+      old_url:
+        description: "URL of the old JSON file"
+        required: true
+      new_url:
+        description: "URL of the new JSON file"
+        required: true
       environment:
         description: "Environment (e.g., Dev, Prod)"
         required: true
       lob:
         description: "Line of Business (LOB)"
         required: true
-      old_url:
-        description: "URL of the old JSON file (optional)"
-        required: false
-      new_url:
-        description: "URL of the new JSON file (optional)"
-        required: false
 
 jobs:
   compare-json:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@v2
-
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '18'
 
-      - name: Install Dependencies
-        run: |
-          npm install exceljs  axios
-
       - name: Run JSON Comparison Script
         env:
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
-          LOB: ${{ github.event.inputs.lob }}
           OLD_URL: ${{ github.event.inputs.old_url }}
           NEW_URL: ${{ github.event.inputs.new_url }}
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
+          LOB: ${{ github.event.inputs.lob }}
         run: |
           node -e "
-            const fs = require('fs');
-            const path = require('path');
             const axios = require('axios');
             const ExcelJS = require('exceljs');
-           
+            const fs = require('fs');
 
-            // Function to load JSON from URL or file
-            async function loadJsonFromUrlOrFile(url, filePath) {
-              if (url) {
-                const response = await axios.get(url);
-                return response.data;
-              } else {
-                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-              }
+            async function fetchJson(url) {
+              const response = await axios.get(url);
+              return response.data;
             }
 
             async function compareJson() {
+              const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
               const environment = process.env.ENVIRONMENT;
               const lob = process.env.LOB;
 
-              // Load JSON files (choose between URL and local file)
-              // Uncomment the URL-based loading below to use URLs, or comment it out to use local files.
-              
-              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
-              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
-
-              /*
-              // URL-based loading (uncomment this section to load from URLs)
-              const oldData = await axios.get(process.env.OLD_URL).then(res => res.data);
-              const newData = await axios.get(process.env.NEW_URL).then(res => res.data);
-              */
+              const oldData = await fetchJson(process.env.OLD_URL);
+              const newData = await fetchJson(process.env.NEW_URL);
 
               const workbook = new ExcelJS.Workbook();
               const dataByParentKey = {};
 
-              function processParentKey(parentKey, oldObj, newObj) {
+              function removeExcludedKeys(obj) {
+                const cleanedObj = {};
+                Object.keys(obj).forEach(key => {
+                  if (!excludedKeys.includes(key)) {
+                    cleanedObj[key] = obj[key];
+                  }
+                });
+                return cleanedObj;
+              }
+
+              function processParentKey(parentKey, oldObj, newObj, isOnlyInOld = false, isOnlyInNew = false) {
                 const newEntries = [];
                 const notFoundEntries = [];
                 const differentEntries = [];
@@ -86,19 +74,30 @@ jobs:
 
                 oldKeys.forEach((key) => {
                   if (!newObj[key]) {
-                    notFoundEntries.push({ key, ...oldObj[key] });
-                  } else if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
-                    const diffRows = [
-                      { key, ...oldObj[key] },
-                      { key: '', ...newObj[key] }
-                    ];
-                    differentEntries.push(...diffRows);
+                    notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
+                  } else {
+                    const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
+                    const cleanedNewEntry = removeExcludedKeys(newObj[key]);
+                    if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
+                      const diffRows = [
+                        { source: 'Old JSON', key, ...cleanedOldEntry },
+                        { source: 'New JSON', key: '', ...cleanedNewEntry }
+                      ];
+                      differentEntries.push(...diffRows);
+                    }
                   }
                 });
 
                 newKeys
                   .filter((key) => !oldKeys.includes(key))
-                  .forEach((key) => newEntries.push({ key, ...newObj[key] }));
+                  .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
+
+                if (isOnlyInOld) {
+                  notFoundEntries.push(...oldKeys.map((key) => ({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) })));
+                }
+                if (isOnlyInNew) {
+                  newEntries.push(...newKeys.map((key) => ({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) })));
+                }
 
                 dataByParentKey[parentKey] = {
                   newEntries,
@@ -108,29 +107,36 @@ jobs:
               }
 
               Object.keys(oldData).forEach((parentKey) => {
-                const oldObj = oldData[parentKey];
-                const newObj = newData[parentKey] || {};
-                processParentKey(parentKey, oldObj, newObj);
+                if (parentKey !== 'smartling') {
+                  const oldObj = oldData[parentKey];
+                  const newObj = newData[parentKey] || {};
+                  processParentKey(parentKey, oldObj, newObj, false, !newData[parentKey]);
+                }
               });
 
               Object.keys(newData)
-                .filter((parentKey) => !oldData.hasOwnProperty(parentKey))
+                .filter((parentKey) => !oldData.hasOwnProperty(parentKey) && parentKey !== 'smartling')
                 .forEach((parentKey) => {
                   const newObj = newData[parentKey];
-                  processParentKey(parentKey, {}, newObj);
+                  processParentKey(parentKey, {}, newObj, true, false);
                 });
 
               for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                let sheetName = parentKey.slice(0, 31); // Limit sheet name to 31 characters
+                let sanitizedName = parentKey.replace(/[^a-zA-Z0-9]/g, '_');
+                let uniqueName = sanitizedName.slice(0, 28);
                 let counter = 1;
 
-                // Handle duplicate sheet names
-                while (workbook.getWorksheet(sheetName)) {
-                  sheetName = parentKey.slice(0, 28)+counter++;
+                while (workbook.getWorksheet(uniqueName)) {
+                  uniqueName = `${sanitizedName.slice(0, 28)}_${counter++}`;
                 }
 
-                const sheet = workbook.addWorksheet(sheetName);
+                const sheet = workbook.addWorksheet(uniqueName);
 
+                // Add Parent Key Header
+                sheet.addRow([`Parent Key: ${parentKey}`]);
+                sheet.addRow([]); // Blank row for spacing
+
+                // Add New Entries Table with headers
                 if (newEntries.length > 0) {
                   sheet.addRow(['New Entries']);
                   sheet.columns = Object.keys(newEntries[0]).map((header) => ({ header, key: header }));
@@ -141,6 +147,7 @@ jobs:
                   sheet.addRow([]);
                 }
 
+                // Add Not Found Entries Table with headers
                 if (notFoundEntries.length > 0) {
                   sheet.addRow(['Not Found Entries']);
                   sheet.columns = Object.keys(notFoundEntries[0]).map((header) => ({ header, key: header }));
@@ -151,6 +158,7 @@ jobs:
                   sheet.addRow([]);
                 }
 
+                // Add Different Entries Table with headers
                 if (differentEntries.length > 0) {
                   sheet.addRow(['Different Entries']);
                   sheet.columns = Object.keys(differentEntries[0]).map((header) => ({ header, key: header }));
@@ -160,11 +168,10 @@ jobs:
                   sheet.addRow(['No Different Entries']);
                   sheet.addRow([]);
                 }
-
               }
 
               await workbook.xlsx.writeFile('json_differences.xlsx');
-              console.log('Excel files generated successfully.');
+              console.log('Excel file generated successfully.');
             }
 
             compareJson().catch((error) => {
@@ -178,5 +185,3 @@ jobs:
         with:
           name: JSON Comparison Report
           path: json_differences.xlsx
-
-      

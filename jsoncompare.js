@@ -1,7 +1,8 @@
 const axios = require('axios');
 const ExcelJS = require('exceljs');
-const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType } = require("docx");
 const fs = require("fs");
+const path = require("path");
+const { Parser } = require("json2csv");
 
 // Function to fetch JSON data from a URL
 async function fetchJson(url) {
@@ -53,7 +54,7 @@ function categorizeEntries(oldData, newData) {
     return { newEntries, notFoundEntries };
 }
 
-// Function to export data to Excel with simplified styling
+// Function to export data to Excel
 async function exportToExcel(dataByParentKey, outputPath) {
     const workbook = new ExcelJS.Workbook();
     const existingNames = new Set();
@@ -91,7 +92,7 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     );
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
-                        cell.alignment = { wrapText: true }; // Enable text wrapping in cells
+                        cell.alignment = { wrapText: true };
                     });
                     currentRow++;
                 });
@@ -114,7 +115,7 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     );
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
-                        cell.alignment = { wrapText: true }; // Enable text wrapping in cells
+                        cell.alignment = { wrapText: true };
                     });
                     currentRow++;
                 });
@@ -126,78 +127,78 @@ async function exportToExcel(dataByParentKey, outputPath) {
     console.log(`Excel exported to ${outputPath}`);
 }
 
-// Function to export data to Word document
-async function exportToWord(dataByParentKey, outputPath) {
-    const doc = new Document({
-        creator: "JSON Diff Tool",
-        title: "JSON Differences Report",
-        description: "Comparison of JSON data differences",
-    });
+// Function to export data to HTML
+async function exportToHtml(dataByParentKey, outputPath) {
+    let htmlContent = `<html><head><title>JSON Differences Report</title></head><body>`;
+    
+    for (const [parentKey, data] of Object.entries(dataByParentKey)) {
+        const { newEntries, notFoundEntries } = data;
+        
+        htmlContent += `<h2>Parent Key: ${parentKey}</h2>`;
+
+        if (newEntries.length > 0) {
+            htmlContent += `<h3>New Entries</h3><table border="1"><tr>`;
+            Object.keys(newEntries[0]).forEach(header => {
+                htmlContent += `<th>${header}</th>`;
+            });
+            htmlContent += `</tr>`;
+            newEntries.forEach(entry => {
+                htmlContent += `<tr>`;
+                Object.values(entry).forEach(value => {
+                    htmlContent += `<td>${value === true ? 'true' : value === false ? 'false' : value || ''}</td>`;
+                });
+                htmlContent += `</tr>`;
+            });
+            htmlContent += `</table>`;
+        }
+
+        if (notFoundEntries.length > 0) {
+            htmlContent += `<h3>Not Found Entries</h3><table border="1"><tr>`;
+            Object.keys(notFoundEntries[0]).forEach(header => {
+                htmlContent += `<th>${header}</th>`;
+            });
+            htmlContent += `</tr>`;
+            notFoundEntries.forEach(entry => {
+                htmlContent += `<tr>`;
+                Object.values(entry).forEach(value => {
+                    htmlContent += `<td>${value === true ? 'true' : value === false ? 'false' : value || ''}</td>`;
+                });
+                htmlContent += `</tr>`;
+            });
+            htmlContent += `</table>`;
+        }
+    }
+
+    htmlContent += `</body></html>`;
+    fs.writeFileSync(outputPath, htmlContent);
+    console.log(`HTML exported to ${outputPath}`);
+}
+
+// Function to export data to CSV
+function exportToCsv(dataByParentKey, outputDir) {
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir);
+    }
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
 
-        // Add parent key title
-        doc.addSection({
-            children: [
-                new Paragraph({
-                    text: `Parent Key: ${parentKey}`,
-                    heading: "Heading1",
-                }),
-            ],
-        });
-
         if (newEntries.length > 0) {
-            doc.addSection({
-                children: [
-                    new Paragraph("New Entries"),
-                    createTable(newEntries),
-                ],
-            });
+            const newCsvPath = path.join(outputDir, `${parentKey}_new_entries.csv`);
+            const parser = new Parser();
+            const csv = parser.parse(newEntries);
+            fs.writeFileSync(newCsvPath, csv);
+            console.log(`CSV exported to ${newCsvPath}`);
         }
 
         if (notFoundEntries.length > 0) {
-            doc.addSection({
-                children: [
-                    new Paragraph("Not Found Entries"),
-                    createTable(notFoundEntries),
-                ],
-            });
+            const notFoundCsvPath = path.join(outputDir, `${parentKey}_not_found_entries.csv`);
+            const parser = new Parser();
+            const csv = parser.parse(notFoundEntries);
+            fs.writeFileSync(notFoundCsvPath, csv);
+            console.log(`CSV exported to ${notFoundCsvPath}`);
         }
     }
-
-    const buffer = await Packer.toBuffer(doc);
-    fs.writeFileSync(outputPath, buffer);
-    console.log(`Word document exported to ${outputPath}`);
-}
-
-// Helper function to create a table for Word document
-function createTable(entries) {
-    const headers = Object.keys(entries[0]);
-    const headerRow = new TableRow({
-        children: headers.map(header => 
-            new TableCell({
-                children: [new Paragraph(header)],
-                width: { size: 20, type: WidthType.PERCENTAGE },
-            })
-        ),
-    });
-
-    const dataRows = entries.map(entry => 
-        new TableRow({
-            children: headers.map(header => 
-                new TableCell({
-                    children: [new Paragraph(entry[header] ? entry[header].toString() : "")],
-                    width: { size: 20, type: WidthType.PERCENTAGE },
-                })
-            ),
-        })
-    );
-
-    return new Table({
-        rows: [headerRow, ...dataRows],
-        width: { size: 100, type: WidthType.PERCENTAGE },
-    });
 }
 
 // Function to generate a unique, valid worksheet name
@@ -220,7 +221,8 @@ async function main() {
     const oldUrl = 'https://example.com/old.json'; // Replace with actual URL
     const newUrl = 'https://example.com/new.json'; // Replace with actual URL
     const excelOutputPath = 'json_differences.xlsx';
-    const wordOutputPath = 'json_differences.docx';
+    const htmlOutputPath = 'json_differences.html';
+    const csvOutputDir = 'json_csv_outputs';
 
     const oldDataRaw = await fetchJson(oldUrl);
     const newDataRaw = await fetchJson(newUrl);
@@ -237,8 +239,9 @@ async function main() {
     }
 
     await exportToExcel(dataByParentKey, excelOutputPath);
-    await exportToWord(dataByParentKey, wordOutputPath);
+    await exportToHtml(dataByParentKey, htmlOutputPath);
+    exportToCsv(dataByParentKey, csvOutputDir);
 }
 
 // Run the main function
-main().catch(error => console.error('Error in main function:', error));
+main().catch(error => console.error('Error in

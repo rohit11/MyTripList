@@ -31,7 +31,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install exceljs json2csv axios
+          npm install exceljs  axios
 
       - name: Run JSON Comparison Script
         env:
@@ -45,7 +45,7 @@ jobs:
             const path = require('path');
             const axios = require('axios');
             const ExcelJS = require('exceljs');
-            const { Parser } = require('json2csv');
+           
 
             // Function to load JSON from URL or file
             async function loadJsonFromUrlOrFile(url, filePath) {
@@ -161,14 +161,10 @@ jobs:
                   sheet.addRow([]);
                 }
 
-                const parser = new Parser();
-                if (newEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_new_entries.csv`, parser.parse(newEntries));
-                if (notFoundEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_not_found_entries.csv`, parser.parse(notFoundEntries));
-                if (differentEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_different_entries.csv`, parser.parse(differentEntries));
               }
 
               await workbook.xlsx.writeFile('json_differences.xlsx');
-              console.log('Excel and CSV files generated successfully.');
+              console.log('Excel files generated successfully.');
             }
 
             compareJson().catch((error) => {

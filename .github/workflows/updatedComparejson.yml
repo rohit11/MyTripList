@@ -3,80 +3,80 @@ name: Compare JSON Files
 on:
   workflow_dispatch:
     inputs:
-      old_url:
-        description: "URL of the old JSON file"
-        required: true
-      new_url:
-        description: "URL of the new JSON file"
-        required: true
       environment:
         description: "Environment (e.g., Dev, Prod)"
         required: true
       lob:
         description: "Line of Business (LOB)"
         required: true
+      old_url:
+        description: "URL of the old JSON file (optional)"
+        required: false
+      new_url:
+        description: "URL of the new JSON file (optional)"
+        required: false
 
 jobs:
   compare-json:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
           node-version: '18'
 
+      - name: Install Dependencies
+        run: |
+          npm install exceljs json2csv axios
+
       - name: Run JSON Comparison Script
         env:
-          OLD_URL: ${{ github.event.inputs.old_url }}
-          NEW_URL: ${{ github.event.inputs.new_url }}
           ENVIRONMENT: ${{ github.event.inputs.environment }}
           LOB: ${{ github.event.inputs.lob }}
+          OLD_URL: ${{ github.event.inputs.old_url }}
+          NEW_URL: ${{ github.event.inputs.new_url }}
         run: |
           node -e "
-            const fetch = require('axios');
+            const fs = require('fs');
+            const path = require('path');
+            const axios = require('axios');
             const ExcelJS = require('exceljs');
             const { Parser } = require('json2csv');
-            const fs = require('fs');
 
-            async function fetchJson(url) {
-              const response = await fetch.get(url);
-              return response.data;
-            }
-
-            function removeIgnoredKeys(obj) {
-              const excludedKeys = ['id', 'lagoon.updatedBy', 'lagoon.updatedAt'];
-              if (Array.isArray(obj)) {
-                return obj.map((item) => removeIgnoredKeys(item));
-              } else if (obj && typeof obj === 'object') {
-                const result = {};
-                for (const key in obj) {
-                  if (!excludedKeys.includes(key)) {
-                    result[key] = removeIgnoredKeys(obj[key]);
-                  }
-                }
-                return result;
+            // Function to load JSON from URL or file
+            async function loadJsonFromUrlOrFile(url, filePath) {
+              if (url) {
+                const response = await axios.get(url);
+                return response.data;
+              } else {
+                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
               }
-              return obj;
-            }
-
-            function getValidSheetName(name, counter) {
-              const sanitizedName = name.replace(/[^a-zA-Z0-9]/g, '_');
-              return sanitizedName.slice(0, 28) + '_' + counter;
             }
 
             async function compareJson() {
-              const oldDataRaw = await fetchJson(process.env.OLD_URL);
-              const newDataRaw = await fetchJson(process.env.NEW_URL);
               const environment = process.env.ENVIRONMENT;
               const lob = process.env.LOB;
+
+              // Load JSON files (choose between URL and local file)
+              // Uncomment the URL-based loading below to use URLs, or comment it out to use local files.
+              
+              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, './old_data.json');
+              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, './new_data.json');
+
+              /*
+              // URL-based loading (uncomment this section to load from URLs)
+              const oldData = await axios.get(process.env.OLD_URL).then(res => res.data);
+              const newData = await axios.get(process.env.NEW_URL).then(res => res.data);
+              */
 
               const workbook = new ExcelJS.Workbook();
               const dataByParentKey = {};
 
               function processParentKey(parentKey, oldObj, newObj) {
-                if (parentKey === 'smartling') return;
-
                 const newEntries = [];
                 const notFoundEntries = [];
                 const differentEntries = [];
@@ -89,8 +89,8 @@ jobs:
                     notFoundEntries.push({ key, ...oldObj[key] });
                   } else if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
                     const diffRows = [
-                      { key, diff_type: environment + ' ' + lob + ' - Old Value', ...oldObj[key] },
-                      { key: '', diff_type: environment + ' ' + lob + ' - New Value', ...newObj[key] }
+                      { key, diff_type: `${environment} ${lob} - Old Value`, ...oldObj[key] },
+                      { key: '', diff_type: `${environment} ${lob} - New Value`, ...newObj[key] }
                     ];
                     differentEntries.push(...diffRows);
                   }
@@ -107,34 +107,33 @@ jobs:
                 };
               }
 
-              Object.keys(oldDataRaw).forEach((parentKey) => {
-                const oldObj = removeIgnoredKeys(oldDataRaw[parentKey]);
-                const newObj = removeIgnoredKeys(newDataRaw[parentKey] || {});
+              Object.keys(oldData).forEach((parentKey) => {
+                const oldObj = oldData[parentKey];
+                const newObj = newData[parentKey] || {};
                 processParentKey(parentKey, oldObj, newObj);
               });
 
-              Object.keys(newDataRaw)
-                .filter((parentKey) => !oldDataRaw.hasOwnProperty(parentKey))
+              Object.keys(newData)
+                .filter((parentKey) => !oldData.hasOwnProperty(parentKey))
                 .forEach((parentKey) => {
-                  const newObj = removeIgnoredKeys(newDataRaw[parentKey]);
+                  const newObj = newData[parentKey];
                   processParentKey(parentKey, {}, newObj);
                 });
 
-              let counter = 1;
               for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                const sheetName = getValidSheetName(parentKey, counter);
-                counter++;
+                let sheetName = parentKey.slice(0, 31); // Limit sheet name to 31 characters
+                let counter = 1;
+
+                // Handle duplicate sheet names
+                while (workbook.getWorksheet(sheetName)) {
+                  sheetName = `${parentKey.slice(0, 28)}_${counter++}`;
+                }
+
                 const sheet = workbook.addWorksheet(sheetName);
-
-                sheet.addRow(['Parent Key: ' + parentKey]);
-                sheet.addRow([]);
-
-                const allColumns = new Set([...newEntries, ...notFoundEntries, ...differentEntries].flatMap(Object.keys));
-                sheet.columns = Array.from(allColumns).map((header) => ({ header, key: header }));
 
                 if (newEntries.length > 0) {
                   sheet.addRow(['New Entries']);
-                  sheet.addRow(Array.from(allColumns));
+                  sheet.columns = Object.keys(newEntries[0]).map((header) => ({ header, key: header }));
                   sheet.addRows(newEntries);
                   sheet.addRow([]);
                 } else {
@@ -144,7 +143,7 @@ jobs:
 
                 if (notFoundEntries.length > 0) {
                   sheet.addRow(['Not Found Entries']);
-                  sheet.addRow(Array.from(allColumns));
+                  sheet.columns = Object.keys(notFoundEntries[0]).map((header) => ({ header, key: header }));
                   sheet.addRows(notFoundEntries);
                   sheet.addRow([]);
                 } else {
@@ -154,8 +153,8 @@ jobs:
 
                 if (differentEntries.length > 0) {
                   sheet.addRow(['Different Entries']);
-                  sheet.addRow(Array.from(allColumns));
-                  sheet.addRows(differentEntries);
+                  sheet.columns = Object.keys(differentEntries[0]).map((header) => ({ header, key: header }));
+                  differentEntries.forEach((entry) => sheet.addRow(entry));
                   sheet.addRow([]);
                 } else {
                   sheet.addRow(['No Different Entries']);
@@ -163,9 +162,9 @@ jobs:
                 }
 
                 const parser = new Parser();
-                if (newEntries.length > 0) fs.writeFileSync('json_csv_outputs/' + sheetName + '_new_entries.csv', parser.parse(newEntries));
-                if (notFoundEntries.length > 0) fs.writeFileSync('json_csv_outputs/' + sheetName + '_not_found_entries.csv', parser.parse(notFoundEntries));
-                if (differentEntries.length > 0) fs.writeFileSync('json_csv_outputs/' + sheetName + '_different_entries.csv', parser.parse(differentEntries));
+                if (newEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_new_entries.csv`, parser.parse(newEntries));
+                if (notFoundEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_not_found_entries.csv`, parser.parse(notFoundEntries));
+                if (differentEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_different_entries.csv`, parser.parse(differentEntries));
               }
 
               await workbook.xlsx.writeFile('json_differences.xlsx');

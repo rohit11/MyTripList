@@ -64,8 +64,8 @@ jobs:
               // Load JSON files (choose between URL and local file)
               // Uncomment the URL-based loading below to use URLs, or comment it out to use local files.
               
-              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, './old_data.json');
-              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, './new_data.json');
+              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
+              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
 
               /*
               // URL-based loading (uncomment this section to load from URLs)

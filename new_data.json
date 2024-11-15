@@ -1,6 +1,6 @@
 {
   "common_searches": {
-    "5": {
+     [{
       "keyword": "Updated Keyword",
       "category": "Updated Category",
       "score": 65786,
@@ -11,7 +11,7 @@
       "coverageType": "M",
       "enableMemberRelevancy": true
     },
-    "10": {
+    {
       "keyword": "New Term",
       "category": "New Category",
       "score": 789,
@@ -21,10 +21,10 @@
       "icon": "icon1",
       "coverageType": "M",
       "enableMemberRelevancy": true
-    }
+    }]
   },
   "common_searches_new": {
-    "5": {
+    [{
       "keyword": "Updated Keyword",
       "category": "Updated Category",
       "score": 65786,
@@ -35,7 +35,7 @@
       "coverageType": "M",
       "enableMemberRelevancy": true
     },
-    "10": {
+     {
       "keyword": "New Term",
       "category": "New Category",
       "score": 789,
@@ -45,6 +45,6 @@
       "icon": "icon1",
       "coverageType": "M",
       "enableMemberRelevancy": true
-    }
+    }]
   }
 }

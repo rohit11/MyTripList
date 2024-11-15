@@ -140,7 +140,7 @@ jobs:
                           const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
                         
                           // Add Parent Key Header
-                          const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
+                          const parentHeaderRow = sheet.addRow(['Table Name: ' + parentKey]);
                           parentHeaderRow.font = { bold: true };
                           sheet.addRow([]);
                         

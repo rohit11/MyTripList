@@ -63,7 +63,6 @@ jobs:
               const environment = process.env.ENVIRONMENT;
               const lob = process.env.LOB;
 
-              
               // Uncomment these lines if you want to use local JSON files
                const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
                const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
@@ -150,13 +149,14 @@ jobs:
                 const sheet = workbook.addWorksheet(uniqueName);
 
                 // Add Parent Key Header
-                sheet.addRow([parentKey]);
+                sheet.addRow([`Parent Key: ${parentKey}`]);
                 sheet.addRow([]); // Blank row for spacing
 
                 // Add New Entries Table with headers
                 if (newEntries.length > 0) {
                   sheet.addRow(['New Entries']);
                   sheet.columns = Object.keys(newEntries[0]).map((header) => ({ header, key: header }));
+                  sheet.addRow(Object.keys(newEntries[0])); // Column headers
                   sheet.addRows(newEntries);
                   sheet.addRow([]);
                 } else {
@@ -168,6 +168,7 @@ jobs:
                 if (notFoundEntries.length > 0) {
                   sheet.addRow(['Not Found Entries']);
                   sheet.columns = Object.keys(notFoundEntries[0]).map((header) => ({ header, key: header }));
+                  sheet.addRow(Object.keys(notFoundEntries[0])); // Column headers
                   sheet.addRows(notFoundEntries);
                   sheet.addRow([]);
                 } else {
@@ -179,12 +180,20 @@ jobs:
                 if (differentEntries.length > 0) {
                   sheet.addRow(['Different Entries']);
                   sheet.columns = Object.keys(differentEntries[0]).map((header) => ({ header, key: header }));
+                  sheet.addRow(Object.keys(differentEntries[0])); // Column headers
                   differentEntries.forEach((entry) => sheet.addRow(entry));
                   sheet.addRow([]);
                 } else {
                   sheet.addRow(['No Different Entries']);
                   sheet.addRow([]);
                 }
+
+                // Enable text wrapping for all cells
+                sheet.eachRow({ includeEmpty: true }, (row) => {
+                  row.eachCell((cell) => {
+                    cell.alignment = { wrapText: true };
+                  });
+                });
               }
 
               await workbook.xlsx.writeFile('json_differences.xlsx');

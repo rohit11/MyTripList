@@ -1,0 +1,48 @@
+name: JSON Difference Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (e.g., test, prod)'
+        required: true
+        default: 'test'
+      lob:
+        description: 'Line of Business (e.g., eni, cns)'
+        required: true
+        default: 'eni'
+  push:
+    branches:
+      - main
+
+jobs:
+  generate-differences:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install axios exceljs json2csv
+
+      - name: Run JSON difference generator
+        run: |
+          node compareJson.js ${{ github.event.inputs.environment }} ${{ github.event.inputs.lob }}
+
+      - name: Upload JSON differences as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: json-differences-excel
+          path: json_differences.xlsx
+
+      - name: Upload combined CSV as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: json-combined-csv
+          path: json_combined.csv

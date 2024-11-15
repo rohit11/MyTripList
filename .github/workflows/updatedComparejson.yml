@@ -137,61 +137,78 @@ jobs:
                     });
                 
                   for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                    const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
-                
-                    // Parent Key Header
-                    const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
-                    parentHeaderRow.font = { bold: true };
-                    sheet.addRow([]);
-                
-                    // Add New Entries
-                    if (newEntries.length > 0) {
-                      const newEntriesHeader = sheet.addRow(['New Entries']);
-                      newEntriesHeader.font = { bold: true };
-                      newEntries.forEach((entry) => {
-                        sheet.addRow(Object.values(entry));
-                      });
-                      sheet.addRow([]);
-                    } else {
-                      const noNewEntriesRow = sheet.addRow(['No New Entries']);
-                      noNewEntriesRow.font = { bold: true };
-                      sheet.addRow([]);
-                    }
-                
-                    // Add Not Found Entries
-                    if (notFoundEntries.length > 0) {
-                      const notFoundHeader = sheet.addRow(['Not Found Entries']);
-                      notFoundHeader.font = { bold: true };
-                      notFoundEntries.forEach((entry) => {
-                        sheet.addRow(Object.values(entry));
-                      });
-                      sheet.addRow([]);
-                    } else {
-                      const noNotFoundRow = sheet.addRow(['No Not Found Entries']);
-                      noNotFoundRow.font = { bold: true };
-                      sheet.addRow([]);
-                    }
-                
-                    // Add Different Entries
-                    if (differentEntries.length > 0) {
-                      const differentHeader = sheet.addRow(['Different Entries']);
-                      differentHeader.font = { bold: true };
-                      differentEntries.forEach((entry) => {
-                        sheet.addRow(Object.values(entry));
-                      });
-                      sheet.addRow([]);
-                    } else {
-                      const noDifferentRow = sheet.addRow(['No Different Entries']);
-                      noDifferentRow.font = { bold: true };
-                      sheet.addRow([]);
-                    }
-                
-                    sheet.eachRow((row) => {
-                      row.eachCell((cell) => {
-                        cell.alignment = { wrapText: true };
-                      });
-                    });
-                  }
+                          const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
+                        
+                          // Add Parent Key Header
+                          const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
+                          parentHeaderRow.font = { bold: true };
+                          sheet.addRow([]);
+                        
+                          // Add New Entries
+                          if (newEntries.length > 0) {
+                            const newEntriesHeader = sheet.addRow(['New Entries']);
+                            newEntriesHeader.font = { bold: true };
+                            // Add headers as a row
+                            const newEntriesKeys = Object.keys(newEntries[0]);
+                            const newEntriesHeaderRow = sheet.addRow(newEntriesKeys);
+                            newEntriesHeaderRow.font = { bold: true };
+                            // Add data rows
+                            newEntries.forEach((entry) => {
+                              sheet.addRow(newEntriesKeys.map((key) => entry[key] || ''));
+                            });
+                            sheet.addRow([]);
+                          } else {
+                            const noNewEntriesRow = sheet.addRow(['No New Entries']);
+                            noNewEntriesRow.font = { bold: true };
+                            sheet.addRow([]);
+                          }
+                        
+                          // Add Not Found Entries
+                          if (notFoundEntries.length > 0) {
+                            const notFoundHeader = sheet.addRow(['Not Found Entries']);
+                            notFoundHeader.font = { bold: true };
+                            // Add headers as a row
+                            const notFoundKeys = Object.keys(notFoundEntries[0]);
+                            const notFoundHeaderRow = sheet.addRow(notFoundKeys);
+                            notFoundHeaderRow.font = { bold: true };
+                            // Add data rows
+                            notFoundEntries.forEach((entry) => {
+                              sheet.addRow(notFoundKeys.map((key) => entry[key] || ''));
+                            });
+                            sheet.addRow([]);
+                          } else {
+                            const noNotFoundRow = sheet.addRow(['No Not Found Entries']);
+                            noNotFoundRow.font = { bold: true };
+                            sheet.addRow([]);
+                          }
+                        
+                          // Add Different Entries
+                          if (differentEntries.length > 0) {
+                            const differentHeader = sheet.addRow(['Different Entries']);
+                            differentHeader.font = { bold: true };
+                            // Add headers as a row
+                            const differentKeys = Object.keys(differentEntries[0]);
+                            const differentHeaderRow = sheet.addRow(differentKeys);
+                            differentHeaderRow.font = { bold: true };
+                            // Add data rows
+                            differentEntries.forEach((entry) => {
+                              sheet.addRow(differentKeys.map((key) => entry[key] || ''));
+                            });
+                            sheet.addRow([]);
+                          } else {
+                            const noDifferentRow = sheet.addRow(['No Different Entries']);
+                            noDifferentRow.font = { bold: true };
+                            sheet.addRow([]);
+                          }
+                        
+                          // Ensure text wrapping for all rows
+                          sheet.eachRow((row) => {
+                            row.eachCell((cell) => {
+                              cell.alignment = { wrapText: true };
+                            });
+                          });
+                        }
+
                 
                   await workbook.xlsx.writeFile('json_differences.xlsx');
                   console.log('Excel file generated successfully.');

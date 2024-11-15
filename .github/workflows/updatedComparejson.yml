@@ -59,146 +59,143 @@ jobs:
             }
             
             async function compareJson() {
-              const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
-              const environment = process.env.ENVIRONMENT;
-              const lob = process.env.LOB;
-
-              // Uncomment these lines if you want to use local JSON files
-               const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
-               const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
-
-              const workbook = new ExcelJS.Workbook();
-              const dataByParentKey = {};
-
-              function removeExcludedKeys(obj) {
-                const cleanedObj = {};
-                Object.keys(obj).forEach(key => {
-                  if (!excludedKeys.includes(key)) {
-                    cleanedObj[key] = obj[key];
+                  const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
+                  const environment = process.env.ENVIRONMENT;
+                  const lob = process.env.LOB;
+                
+                  const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
+                  const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
+                
+                  const workbook = new ExcelJS.Workbook();
+                  const dataByParentKey = {};
+                
+                  function removeExcludedKeys(obj) {
+                    const cleanedObj = {};
+                    Object.keys(obj).forEach(key => {
+                      if (!excludedKeys.includes(key)) {
+                        cleanedObj[key] = obj[key];
+                      }
+                    });
+                    return cleanedObj;
                   }
-                });
-                return cleanedObj;
-              }
-
-              function processParentKey(parentKey, oldObj, newObj, isOnlyInOld = false, isOnlyInNew = false) {
-                const newEntries = [];
-                const notFoundEntries = [];
-                const differentEntries = [];
-
-                const oldKeys = Object.keys(oldObj);
-                const newKeys = Object.keys(newObj);
-
-                oldKeys.forEach((key) => {
-                  if (!newObj[key]) {
-                    notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
-                  } else {
-                    const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
-                    const cleanedNewEntry = removeExcludedKeys(newObj[key]);
-                    if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
-                      const diffRows = [
-                        { source: 'Old JSON', key, ...cleanedOldEntry },
-                        { source: 'New JSON', key: '', ...cleanedNewEntry }
-                      ];
-                      differentEntries.push(...diffRows);
+                
+                  function processParentKey(parentKey, oldObj, newObj, isOnlyInOld = false, isOnlyInNew = false) {
+                    const newEntries = [];
+                    const notFoundEntries = [];
+                    const differentEntries = [];
+                
+                    const oldKeys = Object.keys(oldObj);
+                    const newKeys = Object.keys(newObj);
+                
+                    oldKeys.forEach((key) => {
+                      if (!newObj[key]) {
+                        notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
+                      } else {
+                        const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
+                        const cleanedNewEntry = removeExcludedKeys(newObj[key]);
+                        if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
+                          const diffRows = [
+                            { source: 'Old JSON', key, ...cleanedOldEntry },
+                            { source: 'New JSON', key: '', ...cleanedNewEntry }
+                          ];
+                          differentEntries.push(...diffRows);
+                        }
+                      }
+                    });
+                
+                    newKeys
+                      .filter((key) => !oldKeys.includes(key))
+                      .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
+                
+                    if (isOnlyInOld) {
+                      notFoundEntries.push(...oldKeys.map((key) => ({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) })));
                     }
+                    if (isOnlyInNew) {
+                      newEntries.push(...newKeys.map((key) => ({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) })));
+                    }
+                
+                    dataByParentKey[parentKey] = {
+                      newEntries,
+                      notFoundEntries,
+                      differentEntries,
+                    };
                   }
-                });
-
-                newKeys
-                  .filter((key) => !oldKeys.includes(key))
-                  .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
-
-                if (isOnlyInOld) {
-                  notFoundEntries.push(...oldKeys.map((key) => ({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) })));
-                }
-                if (isOnlyInNew) {
-                  newEntries.push(...newKeys.map((key) => ({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) })));
-                }
-
-                dataByParentKey[parentKey] = {
-                  newEntries,
-                  notFoundEntries,
-                  differentEntries,
-                };
-              }
-
-              Object.keys(oldData).forEach((parentKey) => {
-                if (parentKey !== 'smartling') {
-                  const oldObj = oldData[parentKey];
-                  const newObj = newData[parentKey] || {};
-                  processParentKey(parentKey, oldObj, newObj, false, !newData[parentKey]);
-                }
-              });
-
-              Object.keys(newData)
-                .filter((parentKey) => !oldData.hasOwnProperty(parentKey) && parentKey !== 'smartling')
-                .forEach((parentKey) => {
-                  const newObj = newData[parentKey];
-                  processParentKey(parentKey, {}, newObj, true, false);
-                });
-
-              for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                let sanitizedName = parentKey.replace(/[^a-zA-Z0-9]/g, '_');
-                let uniqueName = sanitizedName.slice(0, 28);
-                let counter = 1;
-
-                while (workbook.getWorksheet(uniqueName)) {
-                  uniqueName = sanitizedName.slice(0, 28)+counter++;
-                }
-
-                const sheet = workbook.addWorksheet(uniqueName);
-
-                // Add Parent Key Header
-                sheet.addRow([`Parent Key: ${parentKey}`]);
-                sheet.addRow([]); // Blank row for spacing
-
-                // Add New Entries Table with headers
-                if (newEntries.length > 0) {
-                  sheet.addRow(['New Entries']);
-                  sheet.columns = Object.keys(newEntries[0]).map((header) => ({ header, key: header }));
-                  sheet.addRow(Object.keys(newEntries[0])); // Column headers
-                  sheet.addRows(newEntries);
-                  sheet.addRow([]);
-                } else {
-                  sheet.addRow(['No New Entries']);
-                  sheet.addRow([]);
-                }
-
-                // Add Not Found Entries Table with headers
-                if (notFoundEntries.length > 0) {
-                  sheet.addRow(['Not Found Entries']);
-                  sheet.columns = Object.keys(notFoundEntries[0]).map((header) => ({ header, key: header }));
-                  sheet.addRow(Object.keys(notFoundEntries[0])); // Column headers
-                  sheet.addRows(notFoundEntries);
-                  sheet.addRow([]);
-                } else {
-                  sheet.addRow(['No Not Found Entries']);
-                  sheet.addRow([]);
-                }
-
-                // Add Different Entries Table with headers
-                if (differentEntries.length > 0) {
-                  sheet.addRow(['Different Entries']);
-                  sheet.columns = Object.keys(differentEntries[0]).map((header) => ({ header, key: header }));
-                  sheet.addRow(Object.keys(differentEntries[0])); // Column headers
-                  differentEntries.forEach((entry) => sheet.addRow(entry));
-                  sheet.addRow([]);
-                } else {
-                  sheet.addRow(['No Different Entries']);
-                  sheet.addRow([]);
-                }
-
-                // Enable text wrapping for all cells
-                sheet.eachRow({ includeEmpty: true }, (row) => {
-                  row.eachCell((cell) => {
-                    cell.alignment = { wrapText: true };
+                
+                  Object.keys(oldData).forEach((parentKey) => {
+                    if (parentKey !== 'smartling') {
+                      const oldObj = oldData[parentKey];
+                      const newObj = newData[parentKey] || {};
+                      processParentKey(parentKey, oldObj, newObj, false, !newData[parentKey]);
+                    }
                   });
-                });
-              }
-
-              await workbook.xlsx.writeFile('json_differences.xlsx');
-              console.log('Excel file generated successfully.');
-            }
+                
+                  Object.keys(newData)
+                    .filter((parentKey) => !oldData.hasOwnProperty(parentKey) && parentKey !== 'smartling')
+                    .forEach((parentKey) => {
+                      const newObj = newData[parentKey];
+                      processParentKey(parentKey, {}, newObj, true, false);
+                    });
+                
+                  for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
+                    const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
+                
+                    // Parent Key Header
+                    const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
+                    parentHeaderRow.font = { bold: true };
+                    sheet.addRow([]);
+                
+                    // Add New Entries
+                    if (newEntries.length > 0) {
+                      const newEntriesHeader = sheet.addRow(['New Entries']);
+                      newEntriesHeader.font = { bold: true };
+                      newEntries.forEach((entry) => {
+                        sheet.addRow(Object.values(entry));
+                      });
+                      sheet.addRow([]);
+                    } else {
+                      const noNewEntriesRow = sheet.addRow(['No New Entries']);
+                      noNewEntriesRow.font = { bold: true };
+                      sheet.addRow([]);
+                    }
+                
+                    // Add Not Found Entries
+                    if (notFoundEntries.length > 0) {
+                      const notFoundHeader = sheet.addRow(['Not Found Entries']);
+                      notFoundHeader.font = { bold: true };
+                      notFoundEntries.forEach((entry) => {
+                        sheet.addRow(Object.values(entry));
+                      });
+                      sheet.addRow([]);
+                    } else {
+                      const noNotFoundRow = sheet.addRow(['No Not Found Entries']);
+                      noNotFoundRow.font = { bold: true };
+                      sheet.addRow([]);
+                    }
+                
+                    // Add Different Entries
+                    if (differentEntries.length > 0) {
+                      const differentHeader = sheet.addRow(['Different Entries']);
+                      differentHeader.font = { bold: true };
+                      differentEntries.forEach((entry) => {
+                        sheet.addRow(Object.values(entry));
+                      });
+                      sheet.addRow([]);
+                    } else {
+                      const noDifferentRow = sheet.addRow(['No Different Entries']);
+                      noDifferentRow.font = { bold: true };
+                      sheet.addRow([]);
+                    }
+                
+                    sheet.eachRow((row) => {
+                      row.eachCell((cell) => {
+                        cell.alignment = { wrapText: true };
+                      });
+                    });
+                  }
+                
+                  await workbook.xlsx.writeFile('json_differences.xlsx');
+                  console.log('Excel file generated successfully.');
+                }
 
             compareJson().catch((error) => {
               console.error('Error:', error);

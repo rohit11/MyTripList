@@ -119,6 +119,9 @@ jobs:
                 const oldKeys = Object.keys(oldObj);
                 const newKeys = Object.keys(newObj);
               
+                // Track keys that have been processed
+                const processedKeys = new Set();
+              
                 // Process each key in the old JSON
                 oldKeys.forEach((key) => {
                   if (!newObj[key]) {
@@ -133,15 +136,16 @@ jobs:
                       // Key exists in both but has different values
                       differentEntries.push(
                         { source: 'Old JSON', key, ...cleanedOldEntry },
-                        { source: 'New JSON', key: '', ...cleanedNewEntry }  // Use an empty `key` cell to align with the Old JSON entry
+                        { source: 'New JSON', key: '', ...cleanedNewEntry } // Use an empty `key` cell to align with the Old JSON entry
                       );
                     }
+                    processedKeys.add(key); // Mark this key as processed
                   }
                 });
               
                 // Process keys that only exist in the new JSON
                 newKeys
-                  .filter((key) => !oldKeys.includes(key))
+                  .filter((key) => !processedKeys.has(key)) // Only process unprocessed keys
                   .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
               
                 // If processing only old or only new JSON data
@@ -158,6 +162,7 @@ jobs:
                   differentEntries,
                 };
               }
+
 
 
               Object.keys(oldData).forEach((parentKey) => {

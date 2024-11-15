@@ -23,4 +23,28 @@
       "enableMemberRelevancy": true
     }
   }
+  "common_searches_new": {
+    "5": {
+      "keyword": "Updated Keyword",
+      "category": "Updated Category",
+      "score": 65786,
+      "psxKeyword": "Dermatologist",
+      "pesKeyword": "02-012-008",
+      "searchType": "Specialty",
+      "icon": "syringe",
+      "coverageType": "M",
+      "enableMemberRelevancy": true
+    },
+    "10": {
+      "keyword": "New Term",
+      "category": "New Category",
+      "score": 789,
+      "psxKeyword": "Keyword1",
+      "pesKeyword": "02-012-008",
+      "searchType": "Specialty",
+      "icon": "icon1",
+      "coverageType": "M",
+      "enableMemberRelevancy": true
+    }
+  }
 }

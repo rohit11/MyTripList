@@ -1,227 +1,185 @@
-name: JSON Difference Generator
+name: Compare JSON Files
 
 on:
   workflow_dispatch:
     inputs:
+      old_url:
+        description: "URL of the old JSON file"
+        required: true
+      new_url:
+        description: "URL of the new JSON file"
+        required: true
       environment:
-        description: 'Environment (e.g., test, prod)'
+        description: "Environment (e.g., Dev, Prod)"
         required: true
-        default: 'test'
       lob:
-        description: 'Line of Business (e.g., eni, cns)'
+        description: "Line of Business (LOB)"
         required: true
-        default: 'eni'
 
 jobs:
-  generate-differences:
+  compare-json:
     runs-on: ubuntu-latest
 
     steps:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
+          node-version: '18'
+          
+      - name: Install Required Packages
+        run: |
+          npm install node-fetch@2 exceljs json2csv    
 
-      - name: Create and Run JSON Comparison Script Inline
+      - name: Run JSON Comparison Script
         env:
+          OLD_URL: ${{ github.event.inputs.old_url }}
+          NEW_URL: ${{ github.event.inputs.new_url }}
           ENVIRONMENT: ${{ github.event.inputs.environment }}
           LOB: ${{ github.event.inputs.lob }}
         run: |
-          cat << 'EOF' > compareJson.js
-          const axios = require('axios');
-          const ExcelJS = require('exceljs');
-          const fs = require('fs');
-          const path = require('path');
-          const { Parser } = require('json2csv');
+          node -e "
+            const fetch = require('node-fetch');
+            const ExcelJS = require('exceljs');
+            const { Parser } = require('json2csv');
+            const fs = require('fs');
 
-          const environment = process.env.ENVIRONMENT || 'defaultEnvironment';
-          const lob = process.env.LOB || 'defaultLob';
-          const oldUrl = `https://example.com/${environment}/${lob}/old.json`;
-          const newUrl = `https://example.com/${environment}/${lob}/new.json`;
+            async function fetchJson(url) {
+              const response = await fetch(url);
+              if (!response.ok) throw new Error('Failed to fetch JSON');
+              return await response.json();
+            }
 
-          async function fetchJson(url) {
-              try {
-                  const response = await axios.get(url);
-                  return response.data;
-              } catch (error) {
-                  console.error(`Error fetching data from ${url}:`, error);
-                  throw error;
-              }
-          }
+            async function compareJson() {
+              const oldData = await fetchJson(process.env.OLD_URL);
+              const newData = await fetchJson(process.env.NEW_URL);
+              const environment = process.env.ENVIRONMENT;
+              const lob = process.env.LOB;
 
-          function removeIgnoredKeys(obj) {
-              if (Array.isArray(obj)) {
-                  return obj.map(item => removeIgnoredKeys(item));
-              } else if (obj && typeof obj === 'object') {
-                  const newObj = {};
-                  for (const key in obj) {
-                      if (!['id', 'lagoon.updatedAt', 'lagoon.updatedBy', 'smartling'].includes(key)) {
-                          newObj[key] = removeIgnoredKeys(obj[key]);
-                      }
-                  }
-                  return newObj;
-              }
-              return obj;
-          }
-
-          function categorizeEntries(oldData, newData) {
-              const oldMap = new Map(oldData.map(item => [item.key, item]));
-              const newMap = new Map(newData.map(item => [item.key, item]));
-
-              const newEntries = [];
-              const notFoundEntries = [];
-
-              newMap.forEach((newItem, key) => {
-                  if (!oldMap.has(key)) {
-                      newEntries.push(newItem);
-                  }
-              });
-
-              oldMap.forEach((oldItem, key) => {
-                  if (!newMap.has(key)) {
-                      notFoundEntries.push(oldItem);
-                  }
-              });
-
-              return { newEntries, notFoundEntries };
-          }
-
-          async function exportToExcel(dataByParentKey, outputPath) {
               const workbook = new ExcelJS.Workbook();
-              const existingNames = new Set();
-
-              for (const [parentKey, data] of Object.entries(dataByParentKey)) {
-                  const { newEntries, notFoundEntries } = data;
-                  const sheetName = generateWorksheetName(parentKey, existingNames);
-                  const sheet = workbook.addWorksheet(sheetName);
-                  let currentRow = 1;
-                  sheet.getRow(currentRow).values = [`Parent Key: ${parentKey}`];
-                  sheet.getRow(currentRow).font = { bold: true, size: 14 };
-                  currentRow += 2;
-
-                  if (newEntries.length === 0 && notFoundEntries.length === 0) {
-                      sheet.getRow(currentRow).values = ['No differences found'];
-                      sheet.getRow(currentRow).font = { italic: true };
-                  } else {
-                      if (newEntries.length > 0) {
-                          sheet.getRow(currentRow).values = ['New Entries'];
-                          sheet.getRow(currentRow).font = { bold: true, size: 12 };
-                          currentRow++;
-                          const headers = Object.keys(newEntries[0]);
-                          sheet.getRow(currentRow).values = headers;
-                          sheet.getRow(currentRow).font = { bold: true };
-                          currentRow++;
-                          newEntries.forEach(entry => {
-                              const rowValues = headers.map(header =>
-                                  entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
-                              );
-                              sheet.addRow(rowValues).eachCell(cell => { cell.alignment = { wrapText: true }; });
-                              currentRow++;
-                          });
-                          currentRow++;
-                      }
-                      if (notFoundEntries.length > 0) {
-                          sheet.getRow(currentRow).values = ['Not Found Entries'];
-                          sheet.getRow(currentRow).font = { bold: true, size: 12 };
-                          currentRow++;
-                          const headers = Object.keys(notFoundEntries[0]);
-                          sheet.getRow(currentRow).values = headers;
-                          sheet.getRow(currentRow).font = { bold: true };
-                          currentRow++;
-                          notFoundEntries.forEach(entry => {
-                              const rowValues = headers.map(header =>
-                                  entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
-                              );
-                              sheet.addRow(rowValues).eachCell(cell => { cell.alignment = { wrapText: true }; });
-                              currentRow++;
-                          });
-                      }
-                  }
-              }
-              await workbook.xlsx.writeFile(outputPath);
-              console.log(`Excel exported to ${outputPath}`);
-          }
-
-          function exportToSeparateCsv(dataByParentKey) {
-              const outputDir = 'json_csv_outputs';
-              if (!fs.existsSync(outputDir)) {
-                  fs.mkdirSync(outputDir);
-              }
-              for (const [parentKey, data] of Object.entries(dataByParentKey)) {
-                  const { newEntries, notFoundEntries } = data;
-                  const csvData = [];
-                  if (newEntries.length > 0) {
-                      csvData.push({ EntryType: 'New Entries', ...newEntries[0] });
-                      newEntries.forEach(entry => csvData.push(entry));
-                  }
-                  if (notFoundEntries.length > 0) {
-                      csvData.push({ EntryType: 'Not Found Entries', ...notFoundEntries[0] });
-                      notFoundEntries.forEach(entry => csvData.push(entry));
-                  }
-                  if (csvData.length > 0) {
-                      const parser = new Parser();
-                      const csv = parser.parse(csvData);
-                      fs.writeFileSync(path.join(outputDir, `${parentKey}_differences.csv`), csv);
-                      console.log(`CSV exported to ${path.join(outputDir, `${parentKey}_differences.csv`)}`);
-                  }
-              }
-          }
-
-          function generateWorksheetName(name, existingNames) {
-              let sanitizedName = name.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 31);
-              let uniqueName = sanitizedName;
-              let counter = 1;
-              while (existingNames.has(uniqueName)) {
-                  uniqueName = `${sanitizedName.slice(0, 28)}_${counter}`;
-                  counter++;
-              }
-              existingNames.add(uniqueName);
-              return uniqueName;
-          }
-
-          async function main() {
-              const excelOutputPath = 'json_differences.xlsx';
-              console.log(`Running with environment: ${environment} and LOB: ${lob}`);
-              const oldDataRaw = await fetchJson(oldUrl);
-              const newDataRaw = await fetchJson(newUrl);
-              const oldData = removeIgnoredKeys(oldDataRaw);
-              const newData = removeIgnoredKeys(newDataRaw);
               const dataByParentKey = {};
 
-              const onlyInOld = Object.keys(oldData).filter(key => !newData.hasOwnProperty(key));
-              const onlyInNew = Object.keys(newData).filter(key => !oldData.hasOwnProperty(key));
+              function processParentKey(parentKey, oldObj, newObj) {
+                const newEntries = [];
+                const notFoundEntries = [];
+                const differentEntries = [];
 
-              onlyInOld.forEach(key => {
-                  dataByParentKey[key] = { newEntries: [], notFoundEntries: [{ message: 'Present only in Old JSON' }] };
-              });
-              onlyInNew.forEach(key => {
-                  dataByParentKey[key] = { newEntries: [{ message: 'Present only in New JSON' }], notFoundEntries: [] };
-              });
+                const oldKeys = Object.keys(oldObj);
+                const newKeys = Object.keys(newObj);
 
-              for (const key of Object.keys(newData)) {
-                  if (Array.isArray(newData[key]) && Array.isArray(oldData[key])) {
-                      dataByParentKey[key] = categorizeEntries(oldData[key], newData[key]);
+                // Determine new, not found, and different entries
+                oldKeys.forEach((key) => {
+                  if (!newObj[key]) {
+                    notFoundEntries.push({ key, ...oldObj[key] });
+                  } else if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
+                    // Add the old and new values in separate rows with merged key column
+                    const diffRows = [
+                      { key, ...oldObj[key], diff_type: `${environment} ${lob} - Old Value` },
+                      { key: '', ...newObj[key], diff_type: `${environment} ${lob} - New Value` }
+                    ];
+                    differentEntries.push(...diffRows);
                   }
+                });
+
+                newKeys
+                  .filter((key) => !oldKeys.includes(key))
+                  .forEach((key) => newEntries.push({ key, ...newObj[key] }));
+
+                // Save categorized data by parent key
+                dataByParentKey[parentKey] = {
+                  newEntries,
+                  notFoundEntries,
+                  differentEntries,
+                };
               }
 
-              await exportToExcel(dataByParentKey, excelOutputPath);
-              exportToSeparateCsv(dataByParentKey);
-          }
+              // Process each parent key dynamically
+              Object.keys(oldData).forEach((parentKey) => {
+                const oldObj = oldData[parentKey];
+                const newObj = newData[parentKey] || {};
+                processParentKey(parentKey, oldObj, newObj);
+              });
 
-          main().catch(error => console.error('Error in main function:', error));
-          EOF
+              Object.keys(newData)
+                .filter((parentKey) => !oldData.hasOwnProperty(parentKey))
+                .forEach((parentKey) => {
+                  const newObj = newData[parentKey];
+                  processParentKey(parentKey, {}, newObj);
+                });
 
-      - name: Run JSON Comparison Script
-        run: node compareJson.js
+              // Generate Excel and CSV outputs for each parent key
+              for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
+                const sheet = workbook.addWorksheet(parentKey);
+
+                // Helper function to get all dynamic column headers
+                const getAllHeaders = (entries) => {
+                  const headers = new Set();
+                  entries.forEach(entry => {
+                    Object.keys(entry).forEach(header => headers.add(header));
+                  });
+                  return Array.from(headers);
+                };
+
+                // Add New Entries Table
+                if (newEntries.length > 0) {
+                  sheet.addRow(['New Entries']);
+                  const headers = getAllHeaders(newEntries);
+                  sheet.columns = headers.map(header => ({ header, key: header }));
+                  sheet.addRows(newEntries);
+                  sheet.addRow([]); // Blank row for spacing
+                } else {
+                  sheet.addRow(['No New Entries']);
+                  sheet.addRow([]);
+                }
+
+                // Add Not Found Entries Table
+                if (notFoundEntries.length > 0) {
+                  sheet.addRow(['Not Found Entries']);
+                  const headers = getAllHeaders(notFoundEntries);
+                  sheet.columns = headers.map(header => ({ header, key: header }));
+                  sheet.addRows(notFoundEntries);
+                  sheet.addRow([]); // Blank row for spacing
+                } else {
+                  sheet.addRow(['No Not Found Entries']);
+                  sheet.addRow([]);
+                }
+
+                // Add Different Entries Table
+                if (differentEntries.length > 0) {
+                  sheet.addRow(['Different Entries']);
+                  const headers = getAllHeaders(differentEntries);
+                  sheet.columns = headers.map(header => ({ header, key: header }));
+                  differentEntries.forEach((entry) => sheet.addRow(entry));
+                  sheet.addRow([]); // Blank row for spacing
+                } else {
+                  sheet.addRow(['No Different Entries']);
+                  sheet.addRow([]);
+                }
+
+                // Create CSV for each parentKey
+                const parser = new Parser();
+                if (newEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_new_entries.csv`, parser.parse(newEntries));
+                if (notFoundEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_not_found_entries.csv`, parser.parse(notFoundEntries));
+                if (differentEntries.length > 0) fs.writeFileSync(`json_csv_outputs/${parentKey}_different_entries.csv`, parser.parse(differentEntries));
+              }
+
+              await workbook.xlsx.writeFile('json_differences.xlsx');
+              console.log('Excel and CSV files generated successfully.');
+            }
+
+            compareJson().catch((error) => {
+              console.error('Error:', error);
+              process.exit(1);
+            });
+          "
 
       - name: Upload Excel Output
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: json_differences.xlsx
+          name: JSON Comparison Report
           path: json_differences.xlsx
 
       - name: Upload CSV Outputs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: json_csv_outputs
-          path: json_csv_outputs
+          name: JSON Comparison CSVs
+          path: 'json_csv_outputs/*.csv'

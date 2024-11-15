@@ -1,26 +1,77 @@
 {
-  "common_searches": [
+  "common-searches": [
     {
-      "keyword": "Old Keyword",
-      "category": "Old Category",
-      "score": 65786,
+      "id": "9262a664-eee4-476d-a67b-a989d3e347d5",
+      "key": "3",
+      "keyword": "joint pain",
+      "category": "Medical Specialists",
+      "lagoon.updatedAt": "2023-10-19T16:22:08.254Z",
+      "lagoon.updatedBy": "mmelloy",
+      "score": "65786",
       "psxKeyword": "Dermatologist",
       "pesKeyword": "02-012-007",
-      "searchType": "Specialty",
+      "searchType": "Speciality",
       "icon": "tube",
       "coverageType": "M",
-      "enableMemberRelevancy": true
+      "enableMemberRelevancy": "",
+      "translatedPsxKeyword": ""
     },
     {
-      "keyword": "Old Keyword",
-      "category": "Old Category",
-      "score": 65786,
-      "psxKeyword": "Dermatologist",
-      "pesKeyword": "02-012-007",
-      "searchType": "Specialty",
-      "icon": "tube",
+      "id": "c45dc003-ba57-43e6-b33c-6a374f37905",
+      "key": "1",
+      "psxKeyword": "Dentist",
+      "category": "Dental",
+      "pesKeyword": "04-011-522",
+      "searchType": "Speciality",
+      "icon": "tooth",
+      "enableMemberRelevancy": false,
+      "coverageType": "D",
+      "rollupCodeFlag": false,
+      "lagoon.updatedBy": "ajogi1",
+      "lagoon.updatedAt": "2024-09-05T13:19:57.275Z"
+    },
+    {
+      "id": "881817e7-65a4-4c9e-94bc-4c2b3f94b302",
+      "key": "4",
+      "psxKeyword": "Mental Health",
+      "category": "Behavioral Health",
+      "pesKeyword": "03-005-381, 03-031-065, 03-025-318, 03-055-144, 03-006-381, 03-006-244",
+      "searchType": "Speciality",
+      "icon": "brain",
+      "enableMemberRelevancy": false,
+      "coverageType": "B",
+      "keyword": "Behavioral Health",
+      "rollupCodeFlag": false,
+      "lagoon.updatedBy": "nneluta",
+      "lagoon.updatedAt": "2024-08-21T20:39:07.891Z"
+    },
+    {
+      "id": "4f734977-52ad-44ff-ae4e-acbf82176cf6",
+      "key": "7",
+      "psxKeyword": "Chiropractor",
+      "category": "Medical Specialists",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
+      "icon": "chiropractor",
+      "enableMemberRelevancy": false,
       "coverageType": "M",
-      "enableMemberRelevancy": true
+      "rollupCodeFlag": false,
+      "lagoon.updatedBy": "hwang14",
+      "lagoon.updatedAt": "2024-10-15T16:56:02.651Z"
+    },
+    {
+      "id": "f317bdb6-7699-4292-8ffe-535f94c0f04c",
+      "key": "2",
+      "psxKeyword": "Primary Care",
+      "category": "Primary Care",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
+      "icon": "care",
+      "enableMemberRelevancy": false,
+      "coverageType": "M",
+      "rollupCodeFlag": false,
+      "lagoon.updatedBy": "ajogi1",
+      "lagoon.updatedAt": "2024-11-07T22:50:08.988Z"
     }
   ]
 }

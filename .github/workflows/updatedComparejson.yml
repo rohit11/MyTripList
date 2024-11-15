@@ -89,7 +89,7 @@ jobs:
             }
 
             async function compareJson() {
-              const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
+              const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt', 'id'];
               const oldEnvironment = process.env.OLD_ENVIRONMENT;
               const oldLob = process.env.OLD_LOB;
               const newEnvironment = process.env.NEW_ENVIRONMENT;
@@ -111,51 +111,43 @@ jobs:
                 return cleanedObj;
               }
 
-              function processParentKey(parentKey, oldObj, newObj, isOnlyInOld = false, isOnlyInNew = false) {
+              function processParentKey(parentKey, oldObj, newObj) {
                 const newEntries = [];
                 const notFoundEntries = [];
                 const differentEntries = [];
-              
+
                 const oldKeys = Object.keys(oldObj);
                 const newKeys = Object.keys(newObj);
-              
-                // Track keys that have been processed
+
+                // Track processed keys
                 const processedKeys = new Set();
-              
-                // Process each key in the old JSON
+
+                // Compare keys in old JSON
                 oldKeys.forEach((key) => {
                   if (!newObj[key]) {
-                    // Key exists in old JSON but not in new JSON
+                    // Key exists only in old JSON
                     notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
                   } else {
                     // Key exists in both old JSON and new JSON
                     const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
                     const cleanedNewEntry = removeExcludedKeys(newObj[key]);
-              
+
                     if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
                       // Key exists in both but has different values
                       differentEntries.push(
                         { source: 'Old JSON', key, ...cleanedOldEntry },
-                        { source: 'New JSON', key: '', ...cleanedNewEntry } // Use an empty `key` cell to align with the Old JSON entry
+                        { source: 'New JSON', key: '', ...cleanedNewEntry }
                       );
                     }
-                    processedKeys.add(key); // Mark this key as processed
+                    processedKeys.add(key);
                   }
                 });
-              
-                // Process keys that only exist in the new JSON
+
+                // Add keys that exist only in new JSON
                 newKeys
-                  .filter((key) => !processedKeys.has(key)) // Only process unprocessed keys
+                  .filter((key) => !processedKeys.has(key))
                   .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
-              
-                // If processing only old or only new JSON data
-                if (isOnlyInOld) {
-                  notFoundEntries.push(...oldKeys.map((key) => ({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) })));
-                }
-                if (isOnlyInNew) {
-                  newEntries.push(...newKeys.map((key) => ({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) })));
-                }
-              
+
                 dataByParentKey[parentKey] = {
                   newEntries,
                   notFoundEntries,
@@ -163,13 +155,11 @@ jobs:
                 };
               }
 
-
-
               Object.keys(oldData).forEach((parentKey) => {
                 if (parentKey !== 'smartling') {
-                  const oldObj = oldData[parentKey];
+                  const oldObj = oldData[parentKey] || {};
                   const newObj = newData[parentKey] || {};
-                  processParentKey(parentKey, oldObj, newObj, false, !newData[parentKey]);
+                  processParentKey(parentKey, oldObj, newObj);
                 }
               });
 
@@ -177,7 +167,7 @@ jobs:
                 .filter((parentKey) => !oldData.hasOwnProperty(parentKey) && parentKey !== 'smartling')
                 .forEach((parentKey) => {
                   const newObj = newData[parentKey];
-                  processParentKey(parentKey, {}, newObj, true, false);
+                  processParentKey(parentKey, {}, newObj);
                 });
 
               for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {

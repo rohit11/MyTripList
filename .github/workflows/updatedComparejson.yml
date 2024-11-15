@@ -47,6 +47,21 @@ jobs:
               return response.data;
             }
 
+            function addWorksheetWithUniqueName(workbook, name) {
+  // Truncate the name to 31 characters
+  let sanitizedName = name.slice(0, 31);
+  let uniqueName = sanitizedName;
+  let counter = 1;
+
+  // Ensure the name is unique within the workbook
+  while (workbook.getWorksheet(uniqueName)) {
+    uniqueName = `${sanitizedName.slice(0, 28)}_${counter}`; // Adjust to fit within 31 characters
+    counter += 1;
+  }
+
+  return workbook.addWorksheet(uniqueName);
+}
+
             async function compareJson() {
               const oldData = await fetchJson(process.env.OLD_URL);
               const newData = await fetchJson(process.env.NEW_URL);
@@ -101,7 +116,7 @@ jobs:
                 });
 
               for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                const sheet = workbook.addWorksheet(parentKey);
+              const sheet = addWorksheetWithUniqueName(workbook, parentKey);
 
                 if (newEntries.length > 0) {
                   sheet.addRow(['New Entries']);

@@ -6,15 +6,20 @@ on:
       old_url:
         description: "URL of the old JSON file"
         required: true
+        default: 'old_data.json'
       new_url:
         description: "URL of the new JSON file"
         required: true
+        default: 'new_data.json'
       environment:
         description: "Environment (e.g., Dev, Prod)"
         required: true
+        default: 'dev'
       lob:
         description: "Line of Business (LOB)"
         required: true
+        default: 'ifp'
+
 
 jobs:
   compare-json:
@@ -25,6 +30,10 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '18'
+          
+      - name: Install Dependencies
+        run: |
+          npm install exceljs axios    
 
       - name: Run JSON Comparison Script
         env:

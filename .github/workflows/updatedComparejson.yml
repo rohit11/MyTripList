@@ -89,8 +89,8 @@ jobs:
                     notFoundEntries.push({ key, ...oldObj[key] });
                   } else if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
                     const diffRows = [
-                      { key, diff_type: `${environment} ${lob} - Old Value`, ...oldObj[key] },
-                      { key: '', diff_type: `${environment} ${lob} - New Value`, ...newObj[key] }
+                      { key, diff_type: "Old Value", ...oldObj[key] },
+                      { key: '', diff_type: "New Value", ...newObj[key] }
                     ];
                     differentEntries.push(...diffRows);
                   }
@@ -126,7 +126,7 @@ jobs:
 
                 // Handle duplicate sheet names
                 while (workbook.getWorksheet(sheetName)) {
-                  sheetName = `${parentKey.slice(0, 28)}_${counter++}`;
+                  sheetName = parentKey.slice(0, 28)+counter++;
                 }
 
                 const sheet = workbook.addWorksheet(sheetName);

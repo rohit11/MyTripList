@@ -5,12 +5,10 @@ on:
     inputs:
       old_url:
         description: "URL of the old JSON file"
-        required: true
-        default: 'old_data.json'
+        required: false
       new_url:
         description: "URL of the new JSON file"
-        required: true
-        default: 'new_data.json'
+        required: false
       environment:
         description: "Environment (e.g., Dev, Prod)"
         required: true
@@ -50,18 +48,22 @@ jobs:
             const ExcelJS = require('exceljs');
             const fs = require('fs');
 
-            async function fetchJson(url) {
-              const response = await axios.get(url);
-              return response.data;
+            // Function to load JSON from URL or file
+            async function loadJsonFromUrlOrFile(url, filePath) {
+              if (url) {
+                const response = await axios.get(url);
+                return response.data;
+              } else {
+                return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+              }
             }
-
+            
             async function compareJson() {
               const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
               const environment = process.env.ENVIRONMENT;
               const lob = process.env.LOB;
 
-              //const oldData = await fetchJson(process.env.OLD_URL);
-              //const newData = await fetchJson(process.env.NEW_URL);
+              
               // Uncomment these lines if you want to use local JSON files
                const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
                const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');

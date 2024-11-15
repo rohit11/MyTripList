@@ -115,43 +115,50 @@ jobs:
                 const newEntries = [];
                 const notFoundEntries = [];
                 const differentEntries = [];
-
+              
                 const oldKeys = Object.keys(oldObj);
                 const newKeys = Object.keys(newObj);
-
+              
+                // Process each key in the old JSON
                 oldKeys.forEach((key) => {
                   if (!newObj[key]) {
+                    // Key exists in old JSON but not in new JSON
                     notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
                   } else {
+                    // Key exists in both old JSON and new JSON
                     const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
                     const cleanedNewEntry = removeExcludedKeys(newObj[key]);
+              
                     if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
-                      const diffRows = [
+                      // Key exists in both but has different values
+                      differentEntries.push(
                         { source: 'Old JSON', key, ...cleanedOldEntry },
-                        { source: 'New JSON', key: '', ...cleanedNewEntry }
-                      ];
-                      differentEntries.push(...diffRows);
+                        { source: 'New JSON', key: '', ...cleanedNewEntry }  // Use an empty `key` cell to align with the Old JSON entry
+                      );
                     }
                   }
                 });
-
+              
+                // Process keys that only exist in the new JSON
                 newKeys
                   .filter((key) => !oldKeys.includes(key))
                   .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
-
+              
+                // If processing only old or only new JSON data
                 if (isOnlyInOld) {
                   notFoundEntries.push(...oldKeys.map((key) => ({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) })));
                 }
                 if (isOnlyInNew) {
                   newEntries.push(...newKeys.map((key) => ({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) })));
                 }
-
+              
                 dataByParentKey[parentKey] = {
                   newEntries,
                   notFoundEntries,
                   differentEntries,
                 };
               }
+
 
               Object.keys(oldData).forEach((parentKey) => {
                 if (parentKey !== 'smartling') {

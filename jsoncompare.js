@@ -128,7 +128,11 @@ async function exportToExcel(dataByParentKey, outputPath) {
 
 // Function to export data to Word document
 async function exportToWord(dataByParentKey, outputPath) {
-    const doc = new Document();
+    const doc = new Document({
+        creator: "JSON Diff Tool",
+        title: "JSON Differences Report",
+        description: "Comparison of JSON data differences",
+    });
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;

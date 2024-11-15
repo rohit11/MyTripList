@@ -6,17 +6,47 @@ on:
       old_url:
         description: "URL of the old JSON file"
         required: false
+      old_environment:
+        description: "Environment for the old JSON file"
+        required: true
+        type: choice
+        options:
+          - test
+          - stage
+          - prod
+        default: test
+      old_lob:
+        description: "Line of Business (LOB) for the old JSON file"
+        required: true
+        type: choice
+        options:
+          - eni
+          - mnr
+          - cns
+          - ifp
+        default: cns
       new_url:
         description: "URL of the new JSON file"
         required: false
-      environment:
-        description: "Environment (e.g., Dev, Prod)"
+      new_environment:
+        description: "Environment for the new JSON file"
         required: true
-        default: 'dev'
-      lob:
-        description: "Line of Business (LOB)"
+        type: choice
+        options:
+          - test
+          - stage
+          - prod
+        default: test
+      new_lob:
+        description: "Line of Business (LOB) for the new JSON file"
         required: true
-        default: 'ifp'
+        type: choice
+        options:
+          - eni
+          - mnr
+          - cns
+          - ifp
+        default: cns
 
 jobs:
   compare-json:
@@ -38,9 +68,11 @@ jobs:
       - name: Run JSON Comparison Script
         env:
           OLD_URL: ${{ github.event.inputs.old_url }}
+          OLD_ENVIRONMENT: ${{ github.event.inputs.old_environment }}
+          OLD_LOB: ${{ github.event.inputs.old_lob }}
           NEW_URL: ${{ github.event.inputs.new_url }}
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
-          LOB: ${{ github.event.inputs.lob }}
+          NEW_ENVIRONMENT: ${{ github.event.inputs.new_environment }}
+          NEW_LOB: ${{ github.event.inputs.new_lob }}
         run: |
           node -e "
             const axios = require('axios');
@@ -58,8 +90,10 @@ jobs:
 
             async function compareJson() {
               const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt'];
-              const environment = process.env.ENVIRONMENT;
-              const lob = process.env.LOB;
+              const oldEnvironment = process.env.OLD_ENVIRONMENT;
+              const oldLob = process.env.OLD_LOB;
+              const newEnvironment = process.env.NEW_ENVIRONMENT;
+              const newLob = process.env.NEW_LOB;
 
               const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
               const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');

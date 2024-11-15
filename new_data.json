@@ -1,50 +1,80 @@
 {
-  "common_searches": [
+  "common-searches": [
     {
-      "keyword": "Updated Keyword",
-      "category": "Updated Category",
-      "score": 65786,
-      "psxKeyword": "Dermatologist",
-      "pesKeyword": "02-012-008",
-      "searchType": "Specialty",
+      "id": "a319566c-4d44-49ef-a34d-aefad1d8f88e",
+      "key": "1",
+      "keyword": "root canal updated",
+      "category": "Family Practice",
+      "lagoon.updatedAt": "2024-03-21T17:46:52.139Z",
+      "lagoon.updatedBy": "mmelloy",
+      "score": "677",
+      "psxKeyword": "Flu",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
       "icon": "syringe",
+      "rollupCodeFlag": false,
       "coverageType": "M",
-      "enableMemberRelevancy": true
+      "enableMemberRelevancy": "",
+      "translatedPsxKeyword": ""
     },
     {
-      "keyword": "New Term",
-      "category": "New Category",
-      "score": 789,
-      "psxKeyword": "Keyword1",
-      "pesKeyword": "02-012-008",
-      "searchType": "Specialty",
-      "icon": "icon1",
-      "coverageType": "M",
-      "enableMemberRelevancy": true
-    }
-  ],
-  "common_searches_new": [
-    {
-      "keyword": "Updated Keyword",
-      "category": "Updated Category",
-      "score": 65786,
+      "id": "9262a664-eee4-476d-a67b-a989d3e347d5",
+      "key": "3",
+      "keyword": "joint pain",
+      "category": "Medical Specialists",
+      "lagoon.updatedAt": "2023-10-19T16:22:08.254Z",
+      "lagoon.updatedBy": "mmelloy",
+      "score": "65786",
       "psxKeyword": "Dermatologist",
-      "pesKeyword": "02-012-008",
-      "searchType": "Specialty",
-      "icon": "syringe",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
+      "icon": "tube",
       "coverageType": "M",
-      "enableMemberRelevancy": true
+      "enableMemberRelevancy": "",
+      "translatedPsxKeyword": ""
     },
     {
-      "keyword": "New Term",
-      "category": "New Category",
-      "score": 789,
-      "psxKeyword": "Keyword1",
-      "pesKeyword": "02-012-008",
-      "searchType": "Specialty",
-      "icon": "icon1",
+      "id": "1bb11683-768b-46db-971d-b811674bf63d",
+      "key": "12",
+      "psxKeyword": "Physical therapists",
+      "category": "Medical Specialists",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
+      "icon": "treadmill",
+      "enableMemberRelevancy": "",
       "coverageType": "M",
-      "enableMemberRelevancy": true
+      "lagoon.updatedBy": "mmelloy",
+      "lagoon.updatedAt": "2024-01-22T21:26:09.137Z",
+      "translatedPsxKeyword": ""
+    },
+    {
+      "id": "7865de7e-9a20-4c00-9aac-0b824291c4b9",
+      "key": "13",
+      "psxKeyword": "Chiropractors",
+      "category": "Medical Specialists",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "icon": "chiropractor",
+      "enableMemberRelevancy": "",
+      "coverageType": "M",
+      "lagoon.updatedBy": "mmelloy",
+      "lagoon.updatedAt": "2023-10-19T18:47:46.754Z",
+      "searchType": "Speciality",
+      "translatedPsxKeyword": ""
+    },
+    {
+      "id": "bd1119d3-95c9-4c47-a461-bb94253bf8c4",
+      "key": "14",
+      "psxKeyword": "Mental health therapists",
+      "category": "Behavioral Health",
+      "pesKeyword": "03-005-381, 03-031-065, 03-025-318, 03-055-140, 03-006-381",
+      "searchType": "Speciality",
+      "icon": "brain",
+      "enableMemberRelevancy": "",
+      "coverageType": "B",
+      "lagoon.updatedBy": "mmelloy",
+      "lagoon.updatedAt": "2024-03-28T17:13:23.878Z",
+      "keyword": "Behavioral Health",
+      "translatedPsxKeyword": ""
     }
   ]
 }

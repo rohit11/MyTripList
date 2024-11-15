@@ -1,7 +1,7 @@
 const axios = require('axios');
 const ExcelJS = require('exceljs');
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
+const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType } = require("docx");
+const fs = require("fs");
 
 // Function to fetch JSON data from a URL
 async function fetchJson(url) {
@@ -53,28 +53,10 @@ function categorizeEntries(oldData, newData) {
     return { newEntries, notFoundEntries };
 }
 
-// Function to generate a unique, valid worksheet name
-function generateWorksheetName(name, existingNames) {
-    let sanitizedName = name.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 31); // Remove special characters and limit to 31 chars
-    let uniqueName = sanitizedName;
-    let counter = 1;
-
-    while (existingNames.has(uniqueName)) {
-        uniqueName = `${sanitizedName.slice(0, 28)}_${counter}`;
-        counter++;
-    }
-
-    existingNames.add(uniqueName);
-    return uniqueName;
-}
-
-// Function to export data to Excel with separate sheets for each parent key
+// Function to export data to Excel with simplified styling
 async function exportToExcel(dataByParentKey, outputPath) {
     const workbook = new ExcelJS.Workbook();
     const existingNames = new Set();
-
-    const newStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } } }; // Green for New
-    const notFoundStyle = { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC7CE' } } }; // Red for Not Found
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
@@ -89,7 +71,6 @@ async function exportToExcel(dataByParentKey, outputPath) {
         sheet.getRow(currentRow).font = { bold: true, size: 14 };
         currentRow += 2;
 
-        // Check if there are any differences
         if (newEntries.length === 0 && notFoundEntries.length === 0) {
             sheet.getRow(currentRow).values = ['No differences found'];
             sheet.getRow(currentRow).font = { italic: true };
@@ -110,7 +91,6 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     );
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
-                        cell.fill = newStyle;
                         cell.alignment = { wrapText: true }; // Enable text wrapping in cells
                     });
                     currentRow++;
@@ -134,7 +114,6 @@ async function exportToExcel(dataByParentKey, outputPath) {
                     );
                     const row = sheet.addRow(rowValues);
                     row.eachCell(cell => {
-                        cell.fill = notFoundStyle;
                         cell.alignment = { wrapText: true }; // Enable text wrapping in cells
                     });
                     currentRow++;
@@ -147,59 +126,89 @@ async function exportToExcel(dataByParentKey, outputPath) {
     console.log(`Excel exported to ${outputPath}`);
 }
 
-// Function to export data to PDF in table format
-async function exportToPDF(dataByParentKey, outputPath) {
-    const doc = new PDFDocument({ autoFirstPage: false });
-    doc.pipe(fs.createWriteStream(outputPath));
+// Function to export data to Word document
+async function exportToWord(dataByParentKey, outputPath) {
+    const doc = new Document();
 
     for (const [parentKey, data] of Object.entries(dataByParentKey)) {
         const { newEntries, notFoundEntries } = data;
 
-        doc.addPage().fontSize(14).text(`Parent Key: ${parentKey}`, { underline: true });
-        doc.moveDown();
+        // Add parent key title
+        doc.addSection({
+            children: [
+                new Paragraph({
+                    text: `Parent Key: ${parentKey}`,
+                    heading: "Heading1",
+                }),
+            ],
+        });
 
-        if (newEntries.length === 0 && notFoundEntries.length === 0) {
-            doc.fontSize(12).text('No differences found');
-        } else {
-            if (newEntries.length > 0) {
-                doc.fontSize(12).text('New Entries', { underline: true }).moveDown();
-                const headers = Object.keys(newEntries[0]);
+        if (newEntries.length > 0) {
+            doc.addSection({
+                children: [
+                    new Paragraph("New Entries"),
+                    createTable(newEntries),
+                ],
+            });
+        }
 
-                // Render table headers
-                doc.fontSize(10).text(headers.join(' | '));
-                doc.moveDown(0.5);
-
-                // Render each row in the table
-                newEntries.forEach(entry => {
-                    const rowValues = headers.map(header => 
-                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
-                    );
-                    doc.text(rowValues.join(' | ')).moveDown(0.5);
-                });
-                doc.moveDown();
-            }
-
-            if (notFoundEntries.length > 0) {
-                doc.fontSize(12).text('Not Found Entries', { underline: true }).moveDown();
-                const headers = Object.keys(notFoundEntries[0]);
-
-                // Render table headers
-                doc.fontSize(10).text(headers.join(' | '));
-                doc.moveDown(0.5);
-
-                // Render each row in the table
-                notFoundEntries.forEach(entry => {
-                    const rowValues = headers.map(header => 
-                        entry[header] === true ? 'true' : entry[header] === false ? 'false' : entry[header] || ''
-                    );
-                    doc.text(rowValues.join(' | ')).moveDown(0.5);
-                });
-            }
+        if (notFoundEntries.length > 0) {
+            doc.addSection({
+                children: [
+                    new Paragraph("Not Found Entries"),
+                    createTable(notFoundEntries),
+                ],
+            });
         }
     }
 
-    doc.end();
-    console.log(`PDF exported to ${outputPath}`);
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+    console.log(`Word document exported to ${outputPath}`);
+}
+
+// Helper function to create a table for Word document
+function createTable(entries) {
+    const headers = Object.keys(entries[0]);
+    const headerRow = new TableRow({
+        children: headers.map(header => 
+            new TableCell({
+                children: [new Paragraph(header)],
+                width: { size: 20, type: WidthType.PERCENTAGE },
+            })
+        ),
+    });
+
+    const dataRows = entries.map(entry => 
+        new TableRow({
+            children: headers.map(header => 
+                new TableCell({
+                    children: [new Paragraph(entry[header] ? entry[header].toString() : "")],
+                    width: { size: 20, type: WidthType.PERCENTAGE },
+                })
+            ),
+        })
+    );
+
+    return new Table({
+        rows: [headerRow, ...dataRows],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+    });
+}
+
+// Function to generate a unique, valid worksheet name
+function generateWorksheetName(name, existingNames) {
+    let sanitizedName = name.replace(/[^a-zA-Z0-9-_ ]/g, '').slice(0, 31); // Remove special characters and limit to 31 chars
+    let uniqueName = sanitizedName;
+    let counter = 1;
+
+    while (existingNames.has(uniqueName)) {
+        uniqueName = `${sanitizedName.slice(0, 28)}_${counter}`;
+        counter++;
+    }
+
+    existingNames.add(uniqueName);
+    return uniqueName;
 }
 
 // Main function
@@ -207,7 +216,7 @@ async function main() {
     const oldUrl = 'https://example.com/old.json'; // Replace with actual URL
     const newUrl = 'https://example.com/new.json'; // Replace with actual URL
     const excelOutputPath = 'json_differences.xlsx';
-    const pdfOutputPath = 'json_differences.pdf';
+    const wordOutputPath = 'json_differences.docx';
 
     const oldDataRaw = await fetchJson(oldUrl);
     const newDataRaw = await fetchJson(newUrl);
@@ -224,7 +233,7 @@ async function main() {
     }
 
     await exportToExcel(dataByParentKey, excelOutputPath);
-    await exportToPDF(dataByParentKey, pdfOutputPath);
+    await exportToWord(dataByParentKey, wordOutputPath);
 }
 
 // Run the main function

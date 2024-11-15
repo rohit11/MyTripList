@@ -1,6 +1,6 @@
 {
-  "common_searches": {
-    [ {
+  "common_searches": [
+    {
       "keyword": "Old Keyword",
       "category": "Old Category",
       "score": 65786,
@@ -11,7 +11,7 @@
       "coverageType": "M",
       "enableMemberRelevancy": true
     },
-     {
+    {
       "keyword": "Old Keyword",
       "category": "Old Category",
       "score": 65786,
@@ -21,6 +21,6 @@
       "icon": "tube",
       "coverageType": "M",
       "enableMemberRelevancy": true
-    }]
-  }
+    }
+  ]
 }

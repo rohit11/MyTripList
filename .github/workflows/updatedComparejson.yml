@@ -48,8 +48,11 @@ jobs:
               const environment = process.env.ENVIRONMENT;
               const lob = process.env.LOB;
 
-              const oldData = await fetchJson(process.env.OLD_URL);
-              const newData = await fetchJson(process.env.NEW_URL);
+              //const oldData = await fetchJson(process.env.OLD_URL);
+              //const newData = await fetchJson(process.env.NEW_URL);
+              // Uncomment these lines if you want to use local JSON files
+               const oldData = require('old_data.json');
+               const newData = require('new_data.json');
 
               const workbook = new ExcelJS.Workbook();
               const dataByParentKey = {};
@@ -127,13 +130,13 @@ jobs:
                 let counter = 1;
 
                 while (workbook.getWorksheet(uniqueName)) {
-                  uniqueName = `${sanitizedName.slice(0, 28)}_${counter++}`;
+                  uniqueName = sanitizedName.slice(0, 28)+counter++;
                 }
 
                 const sheet = workbook.addWorksheet(uniqueName);
 
                 // Add Parent Key Header
-                sheet.addRow([`Parent Key: ${parentKey}`]);
+                sheet.addRow([Parent Key: parentKey]);
                 sheet.addRow([]); // Blank row for spacing
 
                 // Add New Entries Table with headers

@@ -85,8 +85,8 @@ jobs:
             const newEnvironment = process.env.NEW_ENVIRONMENT;
             const newLob = process.env.NEW_LOB;
 
-            const OLD_JSON = `https://example.com/${oldEnvironment}/${oldLob}/data.json`;
-            const NEW_JSON = `https://example.com/${newEnvironment}/${newLob}/data.json`;
+            const OLD_JSON = oldLob;
+            const NEW_JSON = newLob;
 
             async function loadJsonFromUrlOrFile(url, filePath) {
               if (url) {
@@ -98,8 +98,8 @@ jobs:
             }
 
             async function compareJson() {
-              const oldData = await loadJsonFromUrlOrFile(OLD_JSON, 'old_data.json');
-              const newData = await loadJsonFromUrlOrFile(NEW_JSON, 'new_data.json');
+              const oldData = await loadJsonFromUrlOrFile('', 'old_data.json');
+              const newData = await loadJsonFromUrlOrFile('', 'new_data.json');
 
               const workbook = new ExcelJS.Workbook();
 

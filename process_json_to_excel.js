@@ -40,21 +40,39 @@ const differentEntries = newFiltered.filter((entry) => {
   return oldEntry && JSON.stringify(entry) !== JSON.stringify(oldEntry);
 });
 
-// Create an Excel workbook
-const workbook = xlsx.utils.book_new();
+// Prepare data for the Excel file
+const rows = [];
 
-const addSheet = (data, sheetName) => {
-  const sheet = xlsx.utils.json_to_sheet(data);
-  xlsx.utils.book_append_sheet(workbook, sheet, sheetName);
+// Function to add a table with its header and data
+const addTable = (tableName, data) => {
+  if (data.length > 0) {
+    const headerRow = [tableName]; // Table name row
+    const columnRow = Object.keys(data[0]); // Column names row
+    rows.push(headerRow);
+    rows.push(columnRow);
+
+    data.forEach((entry) => {
+      rows.push(Object.values(entry));
+    });
+
+    rows.push([]); // Empty row for separation
+  }
 };
 
-// Prepare data for the Excel file
-addSheet(newEntriesNew, 'New Entries (New -> Old)');
-addSheet(newEntriesOld, 'New Entries (Old -> New)');
-addSheet(notFoundInNew, 'Not Found in New');
-addSheet(notFoundInOld, 'Not Found in Old');
-addSheet(similarEntries, 'Similar Entries');
-addSheet(differentEntries, 'Different Entries');
+// Add tables to the rows array
+addTable('New Entries (New -> Old)', newEntriesNew);
+addTable('New Entries (Old -> New)', newEntriesOld);
+addTable('Not Found in New', notFoundInNew);
+addTable('Not Found in Old', notFoundInOld);
+addTable('Similar Entries', similarEntries);
+addTable('Different Entries', differentEntries);
+
+// Create a worksheet from the rows
+const worksheet = xlsx.utils.aoa_to_sheet(rows);
+
+// Create a workbook and append the worksheet
+const workbook = xlsx.utils.book_new();
+xlsx.utils.book_append_sheet(workbook, worksheet, 'common-searches');
 
 // Write the Excel file
 xlsx.writeFile(workbook, 'report.xlsx');

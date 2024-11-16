@@ -1,0 +1,39 @@
+name: Generate Excel Report from JSON Files
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  process-json:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Node.js environment
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    # Step 3: Install dependencies
+    - name: Install dependencies
+      run: |
+        npm install xlsx
+
+    # Step 4: Process JSON and generate Excel
+    - name: Generate Excel Report
+      run: |
+        node process_json_to_excel.js
+
+    # Step 5: Upload the Excel file as an artifact
+    - name: Upload Excel Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: json-comparison-report
+        path: report.xlsx

@@ -79,6 +79,15 @@ jobs:
             const ExcelJS = require('exceljs');
             const fs = require('fs');
 
+            const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt', 'id'];
+            const oldEnvironment = process.env.OLD_ENVIRONMENT;
+            const oldLob = process.env.OLD_LOB;
+            const newEnvironment = process.env.NEW_ENVIRONMENT;
+            const newLob = process.env.NEW_LOB;
+
+            const OLD_JSON = `https://example.com/${oldEnvironment}/${oldLob}/data.json`;
+            const NEW_JSON = `https://example.com/${newEnvironment}/${newLob}/data.json`;
+
             async function loadJsonFromUrlOrFile(url, filePath) {
               if (url) {
                 const response = await axios.get(url);
@@ -89,21 +98,14 @@ jobs:
             }
 
             async function compareJson() {
-              const excludedKeys = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt', 'id'];
-              const oldEnvironment = process.env.OLD_ENVIRONMENT;
-              const oldLob = process.env.OLD_LOB;
-              const newEnvironment = process.env.NEW_ENVIRONMENT;
-              const newLob = process.env.NEW_LOB;
-
-              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
-              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
+              const oldData = await loadJsonFromUrlOrFile(OLD_JSON, 'old_data.json');
+              const newData = await loadJsonFromUrlOrFile(NEW_JSON, 'new_data.json');
 
               const workbook = new ExcelJS.Workbook();
-              const dataByParentKey = {};
 
               function removeExcludedKeys(obj) {
                 const cleanedObj = {};
-                Object.keys(obj).forEach(key => {
+                Object.keys(obj).forEach((key) => {
                   if (!excludedKeys.includes(key)) {
                     cleanedObj[key] = obj[key];
                   }
@@ -111,125 +113,88 @@ jobs:
                 return cleanedObj;
               }
 
-              function processParentKey(parentKey, oldObj, newObj) {
+              function createSheetForMissingParent(workbook, parentKey, type) {
+                const sheet = workbook.addWorksheet(`${type} ${parentKey}`);
+                const headerRow = sheet.addRow([`${type} Parent Key: ${parentKey}`]);
+                headerRow.font = { bold: true };
+              }
+
+              Object.keys(oldData).forEach((parentKey) => {
+                if (!newData[parentKey]) {
+                  createSheetForMissingParent(workbook, parentKey, 'Missing in New JSON');
+                }
+              });
+
+              Object.keys(newData).forEach((parentKey) => {
+                if (!oldData[parentKey]) {
+                  createSheetForMissingParent(workbook, parentKey, 'Missing in Old JSON');
+                }
+              });
+
+              for (const parentKey of Object.keys(oldData)) {
+                const oldObj = oldData[parentKey];
+                const newObj = newData[parentKey] || {};
+                const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
+
+                const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
+                parentHeaderRow.font = { bold: true };
+                sheet.addRow([]);
+
                 const newEntries = [];
                 const notFoundEntries = [];
                 const differentEntries = [];
+                const similarEntries = [];
 
                 const oldKeys = Object.keys(oldObj);
                 const newKeys = Object.keys(newObj);
 
-                // Track processed keys
-                const processedKeys = new Set();
-
-                // Compare keys in old JSON
                 oldKeys.forEach((key) => {
-                  if (!newObj[key]) {
-                    // Key exists only in old JSON
-                    notFoundEntries.push({ source: 'Old JSON', key, ...removeExcludedKeys(oldObj[key]) });
-                  } else {
-                    // Key exists in both old JSON and new JSON
-                    const cleanedOldEntry = removeExcludedKeys(oldObj[key]);
-                    const cleanedNewEntry = removeExcludedKeys(newObj[key]);
+                  const cleanedOld = removeExcludedKeys(oldObj[key]);
+                  const cleanedNew = removeExcludedKeys(newObj[key] || {});
 
-                    if (JSON.stringify(cleanedOldEntry) !== JSON.stringify(cleanedNewEntry)) {
-                      // Key exists in both but has different values
-                      differentEntries.push(
-                        { source: 'Old JSON', key, ...cleanedOldEntry },
-                        { source: 'New JSON', key: '', ...cleanedNewEntry }
-                      );
-                    }
-                    processedKeys.add(key);
+                  if (!newObj[key]) {
+                    notFoundEntries.push({ source: 'Old JSON', key, ...cleanedOld });
+                  } else if (JSON.stringify(cleanedOld) !== JSON.stringify(cleanedNew)) {
+                    differentEntries.push(
+                      { source: 'Old JSON', key, ...cleanedOld },
+                      { source: 'New JSON', key: '', ...cleanedNew }
+                    );
+                  } else {
+                    similarEntries.push({ source: 'Old JSON and New JSON', key, ...cleanedOld });
                   }
                 });
 
-                // Add keys that exist only in new JSON
                 newKeys
-                  .filter((key) => !processedKeys.has(key))
-                  .forEach((key) => newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newObj[key]) }));
-
-                dataByParentKey[parentKey] = {
-                  newEntries,
-                  notFoundEntries,
-                  differentEntries,
-                };
-              }
-
-              Object.keys(oldData).forEach((parentKey) => {
-                if (parentKey !== 'smartling') {
-                  const oldObj = oldData[parentKey] || {};
-                  const newObj = newData[parentKey] || {};
-                  processParentKey(parentKey, oldObj, newObj);
-                }
-              });
-
-              Object.keys(newData)
-                .filter((parentKey) => !oldData.hasOwnProperty(parentKey) && parentKey !== 'smartling')
-                .forEach((parentKey) => {
-                  const newObj = newData[parentKey];
-                  processParentKey(parentKey, {}, newObj);
-                });
-
-              for (const [parentKey, { newEntries, notFoundEntries, differentEntries }] of Object.entries(dataByParentKey)) {
-                const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
-
-                const parentHeaderRow = sheet.addRow(['Table Name: ' + parentKey]);
-                parentHeaderRow.font = { bold: true };
-                sheet.addRow([]);
-
-                if (newEntries.length > 0) {
-                  const newEntriesHeader = sheet.addRow(['New Entries']);
-                  newEntriesHeader.font = { bold: true };
-                  const newEntriesKeys = Object.keys(newEntries[0]);
-                  const newEntriesHeaderRow = sheet.addRow(newEntriesKeys);
-                  newEntriesHeaderRow.font = { bold: true };
-                  newEntries.forEach((entry) => {
-                    sheet.addRow(newEntriesKeys.map((key) => entry[key] || ''));
+                  .filter((key) => !oldKeys.includes(key))
+                  .forEach((key) => {
+                    const cleanedNew = removeExcludedKeys(newObj[key]);
+                    newEntries.push({ source: 'New JSON', key, ...cleanedNew });
                   });
-                  sheet.addRow([]);
-                } else {
-                  const noNewEntriesRow = sheet.addRow(['No New Entries']);
-                  noNewEntriesRow.font = { bold: true };
-                  sheet.addRow([]);
+
+                // Add data sections to the sheet
+                if (newEntries.length) {
+                  const header = sheet.addRow(['New Entries']);
+                  header.font = { bold: true };
+                  sheet.addRows(newEntries);
                 }
 
-                if (notFoundEntries.length > 0) {
-                  const notFoundHeader = sheet.addRow(['Not Found Entries']);
-                  notFoundHeader.font = { bold: true };
-                  const notFoundKeys = Object.keys(notFoundEntries[0]);
-                  const notFoundHeaderRow = sheet.addRow(notFoundKeys);
-                  notFoundHeaderRow.font = { bold: true };
-                  notFoundEntries.forEach((entry) => {
-                    sheet.addRow(notFoundKeys.map((key) => entry[key] || ''));
-                  });
-                  sheet.addRow([]);
-                } else {
-                  const noNotFoundRow = sheet.addRow(['No Not Found Entries']);
-                  noNotFoundRow.font = { bold: true };
-                  sheet.addRow([]);
+                if (notFoundEntries.length) {
+                  const header = sheet.addRow(['Not Found Entries']);
+                  header.font = { bold: true };
+                  sheet.addRows(notFoundEntries);
                 }
 
-                if (differentEntries.length > 0) {
-                  const differentHeader = sheet.addRow(['Different Entries']);
-                  differentHeader.font = { bold: true };
-                  const differentKeys = Object.keys(differentEntries[0]);
-                  const differentHeaderRow = sheet.addRow(differentKeys);
-                  differentHeaderRow.font = { bold: true };
-                  differentEntries.forEach((entry) => {
-                    sheet.addRow(differentKeys.map((key) => entry[key] || ''));
-                  });
-                  sheet.addRow([]);
-                } else {
-                  const noDifferentRow = sheet.addRow(['No Different Entries']);
-                  noDifferentRow.font = { bold: true };
-                  sheet.addRow([]);
+                if (differentEntries.length) {
+                  const header = sheet.addRow(['Different Entries']);
+                  header.font = { bold: true };
+                  sheet.addRows(differentEntries);
                 }
 
-                sheet.eachRow((row) => {
-                  row.eachCell((cell) => {
-                    cell.alignment = { wrapText: true };
-                  });
-                });
+                if (similarEntries.length) {
+                  const header = sheet.addRow(['Similar Entries']);
+                  header.font = { bold: true };
+                  sheet.addRows(similarEntries);
+                }
               }
 
               await workbook.xlsx.writeFile('json_differences.xlsx');

@@ -11,9 +11,9 @@ on:
         description: 'Line of Business (e.g., eni, cns)'
         required: true
         default: 'eni'
-  push:
-    branches:
-      - main
+  #push:
+    #branches:
+      #- main
 
 jobs:
   generate-differences:

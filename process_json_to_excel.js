@@ -65,6 +65,33 @@ const findSimilarEntries = (newData, oldData) => {
   });
 };
 
+const addTable = (tableName, data, headers, isDifferentEntries = false) => {
+  if (data.length > 0) {
+    rows.push([tableName]); // Add table name as the first row
+    rows.push(headers); // Add headers
+
+    if (isDifferentEntries) {
+      let previousSource = null;
+      data.forEach((entry) => {
+        if (entry.source !== previousSource) {
+          rows.push([`Source: ${entry.source}`]); // Add source as a row above
+          previousSource = entry.source;
+        }
+        const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+        rows.push(row); // Add the data row
+      });
+    } else {
+      data.forEach((entry) => {
+        const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+        rows.push(row); // Add the data row
+      });
+    }
+
+    rows.push([]); // Empty row for separation
+  }
+};
+
+
 // Find entries with differences
 const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
   const differentEntries = [];
@@ -124,7 +151,8 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   addTable(`Not Found in ${lobNew}`, notFoundInNew, headers);
   addTable(`Not Found in ${lobOld}`, notFoundInOld, headers);
   addTable(`Similar Entries`, similarEntries, headers);
-  addTable(`Different Entries`, differentEntries, headers);
+  //addTable(`Different Entries`, differentEntries, headers);
+  addTable(`Different Entries`, differentEntries, headers, true);
 
   // Create worksheet and write to the workbook
   const worksheet = xlsx.utils.aoa_to_sheet(rows);

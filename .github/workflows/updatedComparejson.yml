@@ -85,9 +85,6 @@ jobs:
             const newEnvironment = process.env.NEW_ENVIRONMENT;
             const newLob = process.env.NEW_LOB;
 
-            const OLD_JSON = oldLob;
-            const NEW_JSON = newLob;
-
             async function loadJsonFromUrlOrFile(url, filePath) {
               if (url) {
                 const response = await axios.get(url);
@@ -98,8 +95,8 @@ jobs:
             }
 
             async function compareJson() {
-              const oldData = await loadJsonFromUrlOrFile('', 'old_data.json');
-              const newData = await loadJsonFromUrlOrFile('', 'new_data.json');
+              const oldData = await loadJsonFromUrlOrFile(process.env.OLD_URL, 'old_data.json');
+              const newData = await loadJsonFromUrlOrFile(process.env.NEW_URL, 'new_data.json');
 
               const workbook = new ExcelJS.Workbook();
 
@@ -113,95 +110,55 @@ jobs:
                 return cleanedObj;
               }
 
-              function createSheetForMissingParent(workbook, parentKey, type) {
-                const sheet = workbook.addWorksheet(`${type} ${parentKey}`);
-                const headerRow = sheet.addRow([`${type} Parent Key: ${parentKey}`]);
-                headerRow.font = { bold: true };
+              function createSheet(sheetName, rows) {
+                const sheet = workbook.addWorksheet(sheetName.slice(0, 31));
+                if (rows.length > 0) {
+                  const headers = Object.keys(rows[0]);
+                  sheet.addRow(headers).font = { bold: true };
+                  rows.forEach(row => sheet.addRow(Object.values(row)));
+                } else {
+                  sheet.addRow(['No Data']).font = { bold: true };
+                }
               }
 
+              const newEntries = [];
+              const notFoundEntries = [];
+              const differentEntries = [];
+              const similarEntries = [];
+
               Object.keys(oldData).forEach((parentKey) => {
-                if (!newData[parentKey]) {
-                  createSheetForMissingParent(workbook, parentKey, 'Missing in New JSON');
-                }
-              });
-
-              Object.keys(newData).forEach((parentKey) => {
-                if (!oldData[parentKey]) {
-                  createSheetForMissingParent(workbook, parentKey, 'Missing in Old JSON');
-                }
-              });
-
-              for (const parentKey of Object.keys(oldData)) {
-                const oldObj = oldData[parentKey];
-                const newObj = newData[parentKey] || {};
-                const sheet = workbook.addWorksheet(parentKey.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 31));
-
-                const parentHeaderRow = sheet.addRow([`Parent Key: ${parentKey}`]);
-                parentHeaderRow.font = { bold: true };
-                sheet.addRow([]);
-
-                const newEntries = [];
-                const notFoundEntries = [];
-                const differentEntries = [];
-                const similarEntries = [];
-
-                const oldKeys = Object.keys(oldObj);
-                const newKeys = Object.keys(newObj);
-
-                oldKeys.forEach((key) => {
-                  const cleanedOld = removeExcludedKeys(oldObj[key]);
-                  const cleanedNew = removeExcludedKeys(newObj[key] || {});
-
-                  if (!newObj[key]) {
-                    notFoundEntries.push({ source: 'Old JSON', key, ...cleanedOld });
-                  } else if (JSON.stringify(cleanedOld) !== JSON.stringify(cleanedNew)) {
-                    differentEntries.push(
-                      { source: 'Old JSON', key, ...cleanedOld },
-                      { source: 'New JSON', key: '', ...cleanedNew }
-                    );
+                const oldParent = oldData[parentKey];
+                const newParent = newData[parentKey] || {};
+                Object.keys(oldParent).forEach(key => {
+                  const oldEntry = removeExcludedKeys(oldParent[key]);
+                  const newEntry = removeExcludedKeys(newParent[key] || {});
+                  if (!newParent[key]) {
+                    notFoundEntries.push({ source: 'Old JSON', key, ...oldEntry });
+                  } else if (JSON.stringify(oldEntry) !== JSON.stringify(newEntry)) {
+                    differentEntries.push({ source: 'Old JSON', key, ...oldEntry });
+                    differentEntries.push({ source: 'New JSON', key, ...newEntry });
                   } else {
-                    similarEntries.push({ source: 'Old JSON and New JSON', key, ...cleanedOld });
+                    similarEntries.push({ source: 'Old JSON and New JSON', key, ...oldEntry });
                   }
                 });
 
-                newKeys
-                  .filter((key) => !oldKeys.includes(key))
-                  .forEach((key) => {
-                    const cleanedNew = removeExcludedKeys(newObj[key]);
-                    newEntries.push({ source: 'New JSON', key, ...cleanedNew });
-                  });
+                Object.keys(newParent).forEach(key => {
+                  if (!oldParent[key]) {
+                    newEntries.push({ source: 'New JSON', key, ...removeExcludedKeys(newParent[key]) });
+                  }
+                });
+              });
 
-                // Add data sections to the sheet
-                if (newEntries.length) {
-                  const header = sheet.addRow(['New Entries']);
-                  header.font = { bold: true };
-                  sheet.addRows(newEntries);
-                }
-
-                if (notFoundEntries.length) {
-                  const header = sheet.addRow(['Not Found Entries']);
-                  header.font = { bold: true };
-                  sheet.addRows(notFoundEntries);
-                }
-
-                if (differentEntries.length) {
-                  const header = sheet.addRow(['Different Entries']);
-                  header.font = { bold: true };
-                  sheet.addRows(differentEntries);
-                }
-
-                if (similarEntries.length) {
-                  const header = sheet.addRow(['Similar Entries']);
-                  header.font = { bold: true };
-                  sheet.addRows(similarEntries);
-                }
-              }
+              createSheet('New Entries', newEntries);
+              createSheet('Not Found Entries', notFoundEntries);
+              createSheet('Different Entries', differentEntries);
+              createSheet('Similar Entries', similarEntries);
 
               await workbook.xlsx.writeFile('json_differences.xlsx');
               console.log('Excel file generated successfully.');
             }
 
-            compareJson().catch((error) => {
+            compareJson().catch(error => {
               console.error('Error:', error);
               process.exit(1);
             });

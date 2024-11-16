@@ -59,8 +59,8 @@ const processJsonData = async () => {
   let newJsonLocal = {};
   let oldJsonLocal = {};
   try {
-    newJsonLocal = JSON.parse(fs.readFileSync('new.json', 'utf8'));
-    oldJsonLocal = JSON.parse(fs.readFileSync('old.json', 'utf8'));
+    newJsonLocal = JSON.parse(fs.readFileSync('new_data.json', 'utf8'));
+    oldJsonLocal = JSON.parse(fs.readFileSync('old_data.json', 'utf8'));
   } catch (error) {
     console.log('Local JSON files not found or could not be read.');
   }
@@ -68,20 +68,20 @@ const processJsonData = async () => {
   // Fetch JSON files from URLs
   let newJsonRemote = {};
   let oldJsonRemote = {};
-  try {
+  /*try {
     console.log(`Fetching new JSON from ${newJsonUrl}`);
     newJsonRemote = await fetchJson(newJsonUrl);
     console.log('Fetched new JSON successfully.');
   } catch (error) {
     console.log('Failed to fetch new JSON:', error.message);
-  }
+  }*
   try {
     console.log(`Fetching old JSON from ${oldJsonUrl}`);
     oldJsonRemote = await fetchJson(oldJsonUrl);
     console.log('Fetched old JSON successfully.');
   } catch (error) {
     console.log('Failed to fetch old JSON:', error.message);
-  }
+  }*/
 
   // Merge remote and local JSON data
   const newJson = { ...newJsonLocal, ...newJsonRemote };

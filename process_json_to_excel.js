@@ -65,31 +65,7 @@ const findSimilarEntries = (newData, oldData) => {
   });
 };
 
-const addTable = (tableName, data, headers, isDifferentEntries = false) => {
-  if (data.length > 0) {
-    rows.push([tableName]); // Add table name as the first row
-    rows.push(headers); // Add headers
 
-    if (isDifferentEntries) {
-      let previousSource = null;
-      data.forEach((entry) => {
-        if (entry.source !== previousSource) {
-          rows.push([`Source: ${entry.source}`]); // Add source as a row above
-          previousSource = entry.source;
-        }
-        const row = headers.map((key) => entry[key] || null); // Map entry values to headers
-        rows.push(row); // Add the data row
-      });
-    } else {
-      data.forEach((entry) => {
-        const row = headers.map((key) => entry[key] || null); // Map entry values to headers
-        rows.push(row); // Add the data row
-      });
-    }
-
-    rows.push([]); // Empty row for separation
-  }
-};
 
 
 // Find entries with differences
@@ -134,16 +110,31 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   rows.push([`Parent Key: ${parentKey}`]);
   rows.push([]); // Empty row for separation
 
-  const addTable = (tableName, data, headers) => {
-    if (data.length > 0) {
-      rows.push([tableName]); // Add table name
-      rows.push(headers); // Add headers
-      data.forEach((entry) => {
-        rows.push(headers.map((key) => entry[key])); // Add rows based on normalized data
-      });
-      rows.push([]); // Empty row for separation
-    }
-  };
+  const addTable = (tableName, data, headers, isDifferentEntries = false) => {
+        if (data.length > 0) {
+        rows.push([tableName]); // Add table name as the first row
+        rows.push(headers); // Add headers
+    
+        if (isDifferentEntries) {
+          let previousSource = null;
+          data.forEach((entry) => {
+            if (entry.source !== previousSource) {
+              rows.push([`Source: ${entry.source}`]); // Add source as a row above
+              previousSource = entry.source;
+            }
+            const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+            rows.push(row); // Add the data row
+          });
+        } else {
+          data.forEach((entry) => {
+            const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+            rows.push(row); // Add the data row
+          });
+        }
+    
+        rows.push([]); // Empty row for separation
+      }
+    };
 
   // Add all tables
   addTable(`New Entries (${lobNew} -> ${lobOld})`, newEntriesNew, headers);

@@ -1,31 +1,18 @@
-const fs = require('fs');
-const https = require('https');
-const xlsx = require('xlsx');
+const fs = require("fs");
+const xlsx = require("xlsx");
+const https = require("https");
 
 // Excluded keys for entries
-const EXCLUDED_KEYS = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt', 'id'];
-
-// Excluded parent keys
-const EXCLUDED_PARENT_KEYS = ['smartling'];
-
-// Parameters from environment (passed from YAML)
-const LOB_NEW = process.env.LOB_NEW || 'default-new-lob';
-const LOB_OLD = process.env.LOB_OLD || 'default-old-lob';
-const ENV_NEW = process.env.ENV_NEW || 'default-new-env';
-const ENV_OLD = process.env.ENV_OLD || 'default-old-env';
-
-// URLs for downloading JSON files
-const newJsonUrl = `https://example.com/${LOB_NEW}/${ENV_NEW}/new.json`;
-const oldJsonUrl = `https://example.com/${LOB_OLD}/${ENV_OLD}/old.json`;
+const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
 
 // Helper function to fetch JSON data from a URL
 const fetchJson = (url) => {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => resolve(JSON.parse(data)));
-      res.on('error', (err) => reject(err));
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => resolve(JSON.parse(data)));
+      res.on("error", (err) => reject(err));
     });
   });
 };
@@ -37,231 +24,126 @@ const filterKeys = (entry) => {
   return filteredEntry;
 };
 
-// Helper function to truncate or make sheet names unique
-const sheetNames = new Set();
-const getUniqueSheetName = (name) => {
-  let baseName = name.slice(0, 28); // Truncate to 28 characters if necessary
-  let counter = 1;
-
-  let uniqueName = baseName;
-  while (sheetNames.has(uniqueName)) {
-    uniqueName = `${baseName.slice(0, 28 - counter.toString().length)}${counter}`;
-    counter++;
-  }
-
-  sheetNames.add(uniqueName); // Mark this name as used
-  return uniqueName;
+// Generate consistent headers from two datasets
+const getHeaders = (data1, data2) => {
+  const allKeys = new Set();
+  data1.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+  data2.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+  return Array.from(allKeys);
 };
 
-// Main processing function
-const processJsonData = async () => {
-  // Load local JSON files (fallback)
-  let newJsonLocal = {};
-  let oldJsonLocal = {};
-  try {
-    newJsonLocal = JSON.parse(fs.readFileSync('new_data.json', 'utf8'));
-    oldJsonLocal = JSON.parse(fs.readFileSync('old_data.json', 'utf8'));
-  } catch (error) {
-    console.log('Local JSON files not found or could not be read.');
-  }
-
-  // Fetch JSON files from URLs
-  let newJsonRemote = {};
-  let oldJsonRemote = {};
-  /*try {
-    console.log(`Fetching new JSON from ${newJsonUrl}`);
-    newJsonRemote = await fetchJson(newJsonUrl);
-    console.log('Fetched new JSON successfully.');
-  } catch (error) {
-    console.log('Failed to fetch new JSON:', error.message);
-  }*
-  try {
-    console.log(`Fetching old JSON from ${oldJsonUrl}`);
-    oldJsonRemote = await fetchJson(oldJsonUrl);
-    console.log('Fetched old JSON successfully.');
-  } catch (error) {
-    console.log('Failed to fetch old JSON:', error.message);
-  }*/
-
-  // Merge remote and local JSON data
-  const newJson = { ...newJsonLocal, ...newJsonRemote };
-  const oldJson = { ...oldJsonLocal, ...oldJsonRemote };
-
-  // Create a workbook for Excel
-  const workbook = xlsx.utils.book_new();
-
-  // Get all unique parent keys from both JSON files, excluding the ignored parent keys
-  const parentKeys = new Set(
-    [...Object.keys(newJson), ...Object.keys(oldJson)].filter(
-      (key) => !EXCLUDED_PARENT_KEYS.includes(key)
-    )
-  );
-
-  // Process each parent key
-  parentKeys.forEach((parentKey) => {
-    // Extract data for the current parent key (handle missing keys as empty arrays)
-    const newEntries = newJson[parentKey] || [];
-    const oldEntries = oldJson[parentKey] || [];
-
-    // Remove excluded keys
-    const newFiltered = newEntries.map(filterKeys);
-    const oldFiltered = oldEntries.map(filterKeys);
-
-    // Convert to maps for quick comparison using 'key'
-    const newMap = new Map(newFiltered.map((entry) => [entry.key, entry]));
-    const oldMap = new Map(oldFiltered.map((entry) => [entry.key, entry]));
-
-    // Generate comparison tables
-    const newEntriesNew = newFiltered.filter((entry) => !oldMap.has(entry.key));
-    const newEntriesOld = oldFiltered.filter((entry) => !newMap.has(entry.key));
-    const notFoundInNew = oldFiltered.filter((entry) => !newMap.has(entry.key));
-    const notFoundInOld = newFiltered.filter((entry) => !oldMap.has(entry.key));
-    const similarEntries = newFiltered.filter((entry) => {
-      const oldEntry = oldMap.get(entry.key);
-      return oldEntry && JSON.stringify(entry) === JSON.stringify(oldEntry);
-    });
-
-    // For Different Entries, include both `new.json` and `old.json` values
-    const differentEntries = [];
-    newFiltered.forEach((entry) => {
-      const oldEntry = oldMap.get(entry.key);
-      if (oldEntry && JSON.stringify(entry) !== JSON.stringify(oldEntry)) {
-        differentEntries.push({ source: `LOB: ${LOB_NEW}`, ...entry });
-        differentEntries.push({ source: `LOB: ${LOB_OLD}`, ...oldEntry });
+// Normalize rows to match headers and handle missing keys
+const normalizeRows = (data, headers) => {
+  return data.map((entry) => {
+    const row = {};
+    headers.forEach((key) => {
+      let value = entry[key];
+      if (typeof value === "boolean") {
+        value = value.toString(); // Convert true/false to lowercase strings
       }
+      row[key] = value || null; // Assign `null` if the key is missing
     });
+    return row;
+  });
+};
 
-    // Prepare data for the Excel file
-    const rows = [];
+// Compare two entries field by field to determine equality
+const areEntriesEqual = (entry1, entry2) => {
+  const filteredEntry1 = filterKeys(entry1);
+  const filteredEntry2 = filterKeys(entry2);
 
-    // Add parent key as the first row
-    rows.push([`Parent Key: ${parentKey}`]);
-    rows.push([]); // Empty row for separation
+  const allKeys = new Set([...Object.keys(filteredEntry1), ...Object.keys(filteredEntry2)]);
 
-    // Function to add a table with its header and data
-    const addTable = (tableName, data) => {
-      if (data.length > 0) {
-        const headerRow = [tableName]; // Table name row
-        const columnRow = Object.keys(data[0]); // Column names row
-        rows.push(headerRow);
-        rows.push(columnRow);
+  return Array.from(allKeys).every((key) => filteredEntry1[key] === filteredEntry2[key]);
+};
 
-        data.forEach((entry) => {
-          rows.push(Object.values(entry));
-        });
+// Find similar entries by comparing field by field
+const findSimilarEntries = (newData, oldData) => {
+  return newData.filter((entry) => {
+    const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+    return matchingOldEntry && areEntriesEqual(entry, matchingOldEntry);
+  });
+};
 
-        rows.push([]); // Empty row for separation
-      }
-    };
+// Find entries with differences
+const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
+  const differentEntries = [];
 
-    // Add tables to the rows array
-    addTable(`New Entries (${LOB_NEW} -> ${LOB_OLD})`, newEntriesNew);
-    addTable(`New Entries (${LOB_OLD} -> ${LOB_NEW})`, newEntriesOld);
-    addTable(`Not Found in ${LOB_NEW}`, notFoundInNew);
-    addTable(`Not Found in ${LOB_OLD}`, notFoundInOld);
-    addTable(`Similar Entries`, similarEntries);
-    addTable(`Different Entries`, differentEntries);
-
-    // Generate a unique and valid sheet name
-    const sheetName = getUniqueSheetName(parentKey);
-
-    // Create a worksheet for the current parent key
-    const worksheet = xlsx.utils.aoa_to_sheet(rows);
-    xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
+  newData.forEach((entry) => {
+    const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+    if (matchingOldEntry && !areEntriesEqual(entry, matchingOldEntry)) {
+      differentEntries.push({ source: `LOB: ${lobNew}`, ...entry });
+      differentEntries.push({ source: `LOB: ${lobOld}`, ...matchingOldEntry });
+    }
   });
 
-  // Write the Excel file
-  xlsx.writeFile(workbook, 'report.xlsx');
-
-  console.log('Excel report generated: report.xlsx');
+  return differentEntries;
 };
 
-// Run the process
-processJsonData().catch((err) => console.error(err));
+// Main Excel generation function
+const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
+  const workbook = xlsx.utils.book_new();
+  const rows = [];
 
+  const newEntries = newJson[parentKey] || [];
+  const oldEntries = oldJson[parentKey] || [];
+  const newFiltered = newEntries.map(filterKeys);
+  const oldFiltered = oldEntries.map(filterKeys);
 
-/*const fs = require('fs');
-const xlsx = require('xlsx');
+  // Generate consistent headers and normalized rows
+  const headers = getHeaders(newFiltered, oldFiltered);
+  const normalizedNew = normalizeRows(newFiltered, headers);
+  const normalizedOld = normalizeRows(oldFiltered, headers);
 
-// Excluded keys
-const EXCLUDED_KEYS = ['smartling', 'lagoon.updatedBy', 'lagoon.updatedAt', 'id'];
+  // Generate comparison tables
+  const newEntriesNew = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
+  const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
-// Helper function to remove excluded keys from JSON
-const filterKeys = (entry) => {
-  const filteredEntry = { ...entry };
-  EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
-  return filteredEntry;
+  // Add rows to the Excel
+  rows.push([`Parent Key: ${parentKey}`]);
+  rows.push([]); // Empty row for separation
+
+  const addTable = (tableName, data, headers) => {
+    if (data.length > 0) {
+      rows.push([tableName]); // Add table name
+      rows.push(headers); // Add headers
+      data.forEach((entry) => {
+        rows.push(headers.map((key) => entry[key])); // Add rows based on normalized data
+      });
+      rows.push([]); // Empty row for separation
+    }
+  };
+
+  // Add all tables
+  addTable(`New Entries (${lobNew} -> ${lobOld})`, newEntriesNew, headers);
+  addTable(`New Entries (${lobOld} -> ${lobNew})`, newEntriesOld, headers);
+  addTable(`Not Found in ${lobNew}`, notFoundInNew, headers);
+  addTable(`Not Found in ${lobOld}`, notFoundInOld, headers);
+  addTable(`Similar Entries`, similarEntries, headers);
+  addTable(`Different Entries`, differentEntries, headers);
+
+  // Create worksheet and write to the workbook
+  const worksheet = xlsx.utils.aoa_to_sheet(rows);
+  xlsx.utils.book_append_sheet(workbook, worksheet, parentKey.slice(0, 28));
+
+  xlsx.writeFile(workbook, "report.xlsx");
+  console.log(`Excel file "report.xlsx" generated successfully.`);
 };
 
-// Load JSON files
-const newJson = JSON.parse(fs.readFileSync('new_data.json', 'utf8'))['common-searches'];
-const oldJson = JSON.parse(fs.readFileSync('old_data.json', 'utf8'))['common-searches'];
+// Main function
+const main = () => {
+  const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
+  const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
+  const parentKey = "common-searches";
 
-// Remove excluded keys
-const newFiltered = newJson.map(filterKeys);
-const oldFiltered = oldJson.map(filterKeys);
+  const lobNew = process.env.LOB_NEW || "ifa";
+  const lobOld = process.env.LOB_OLD || "cns";
 
-// Convert to maps for quick comparison using 'key'
-const newMap = new Map(newFiltered.map((entry) => [entry.key, entry]));
-const oldMap = new Map(oldFiltered.map((entry) => [entry.key, entry]));
-
-// Generate comparison tables
-const newEntriesNew = newFiltered.filter((entry) => !oldMap.has(entry.key));
-const newEntriesOld = oldFiltered.filter((entry) => !newMap.has(entry.key));
-
-const notFoundInNew = oldFiltered.filter((entry) => !newMap.has(entry.key));
-const notFoundInOld = newFiltered.filter((entry) => !oldMap.has(entry.key));
-
-const similarEntries = newFiltered.filter((entry) => {
-  const oldEntry = oldMap.get(entry.key);
-  return oldEntry && JSON.stringify(entry) === JSON.stringify(oldEntry);
-});
-
-// For Different Entries, include both `new.json` and `old.json` values
-const differentEntries = [];
-newFiltered.forEach((entry) => {
-  const oldEntry = oldMap.get(entry.key);
-  if (oldEntry && JSON.stringify(entry) !== JSON.stringify(oldEntry)) {
-    differentEntries.push({ source: 'new.json', ...entry });
-    differentEntries.push({ source: 'old.json', ...oldEntry });
-  }
-});
-
-// Prepare data for the Excel file
-const rows = [];
-
-// Function to add a table with its header and data
-const addTable = (tableName, data) => {
-  if (data.length > 0) {
-    const headerRow = [tableName]; // Table name row
-    const columnRow = Object.keys(data[0]); // Column names row
-    rows.push(headerRow);
-    rows.push(columnRow);
-
-    data.forEach((entry) => {
-      rows.push(Object.values(entry));
-    });
-
-    rows.push([]); // Empty row for separation
-  }
+  generateExcelFromJson(newJson, oldJson, parentKey, lobNew, lobOld);
 };
 
-// Add tables to the rows array
-addTable('New Entries (New -> Old)', newEntriesNew);
-addTable('New Entries (Old -> New)', newEntriesOld);
-addTable('Not Found in New', notFoundInNew);
-addTable('Not Found in Old', notFoundInOld);
-addTable('Similar Entries', similarEntries);
-addTable('Different Entries', differentEntries);
-
-// Create a worksheet from the rows
-const worksheet = xlsx.utils.aoa_to_sheet(rows);
-
-// Create a workbook and append the worksheet
-const workbook = xlsx.utils.book_new();
-xlsx.utils.book_append_sheet(workbook, worksheet, 'common-searches');
-
-// Write the Excel file
-xlsx.writeFile(workbook, 'report.xlsx');
-
-console.log('Excel report generated: report.xlsx');*/
+main();

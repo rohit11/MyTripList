@@ -75,6 +75,21 @@
       "lagoon.updatedAt": "2024-03-28T17:13:23.878Z",
       "keyword": "Behavioral Health",
       "translatedPsxKeyword": ""
+    },
+    {
+      "id": "bd1119d3-95c9-4c47-a461-bb94253bf8c4",
+      "key": "50",
+      "psxKeyword": "Mental health therapists",
+      "category": "Behavioral Health",
+      "pesKeyword": "03-005-381, 03-031-065, 03-025-318, 03-055-140, 03-006-381",
+      "searchType": "Speciality",
+      "icon": "brain",
+      "enableMemberRelevancy": "",
+      "coverageType": "B",
+      "lagoon.updatedBy": "mmelloy",
+      "lagoon.updatedAt": "2024-03-28T17:13:23.878Z",
+      "keyword": "Behavioral Health",
+      "translatedPsxKeyword": ""
     }
   ]
 }

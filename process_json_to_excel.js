@@ -12,8 +12,8 @@ const filterKeys = (entry) => {
 };
 
 // Load JSON files
-const newJson = JSON.parse(fs.readFileSync('new.json', 'utf8'))['common-searches'];
-const oldJson = JSON.parse(fs.readFileSync('old.json', 'utf8'))['common-searches'];
+const newJson = JSON.parse(fs.readFileSync('new_data.json', 'utf8'))['common-searches'];
+const oldJson = JSON.parse(fs.readFileSync('old_data.json', 'utf8'))['common-searches'];
 
 // Remove excluded keys
 const newFiltered = newJson.map(filterKeys);

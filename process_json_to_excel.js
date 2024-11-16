@@ -12,8 +12,8 @@ const filterKeys = (entry) => {
 };
 
 // Load JSON files
-const newJson = JSON.parse(fs.readFileSync('new_data.json', 'utf8'))['common-searches'];
-const oldJson = JSON.parse(fs.readFileSync('old_data.json', 'utf8'))['common-searches'];
+const newJson = JSON.parse(fs.readFileSync('new.json', 'utf8'))['common-searches'];
+const oldJson = JSON.parse(fs.readFileSync('old.json', 'utf8'))['common-searches'];
 
 // Remove excluded keys
 const newFiltered = newJson.map(filterKeys);
@@ -35,9 +35,14 @@ const similarEntries = newFiltered.filter((entry) => {
   return oldEntry && JSON.stringify(entry) === JSON.stringify(oldEntry);
 });
 
-const differentEntries = newFiltered.filter((entry) => {
+// For Different Entries, include both `new.json` and `old.json` values
+const differentEntries = [];
+newFiltered.forEach((entry) => {
   const oldEntry = oldMap.get(entry.key);
-  return oldEntry && JSON.stringify(entry) !== JSON.stringify(oldEntry);
+  if (oldEntry && JSON.stringify(entry) !== JSON.stringify(oldEntry)) {
+    differentEntries.push({ source: 'new.json', ...entry });
+    differentEntries.push({ source: 'old.json', ...oldEntry });
+  }
 });
 
 // Prepare data for the Excel file

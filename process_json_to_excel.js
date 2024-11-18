@@ -98,16 +98,20 @@ const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
 };
 
 // Main Excel generation function
+// Main Excel generation function
 const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
-  if (EXCLUDED_PARENT_KEYS.includes(parentKey)) return; // Ignore excluded parent keys
+  if (parentKey === "smartling") return; // Ignore smartling parent key
 
   const workbook = xlsx.utils.book_new();
   const rows = [];
 
+  // Fetch entries for the current parent key
   const newEntries = newJson[parentKey] || [];
   const oldEntries = oldJson[parentKey] || [];
-  const newFiltered = newEntries.map(filterKeys);
-  const oldFiltered = oldEntries.map(filterKeys);
+
+  // Ensure sheets are created even if one of the JSONs does not contain the parent key
+  const newFiltered = newEntries.length > 0 ? newEntries.map(filterKeys) : [];
+  const oldFiltered = oldEntries.length > 0 ? oldEntries.map(filterKeys) : [];
 
   // Generate consistent headers and normalized rows
   const headers = getHeaders(newFiltered, oldFiltered);
@@ -184,3 +188,4 @@ const main = () => {
 };
 
 main();
+

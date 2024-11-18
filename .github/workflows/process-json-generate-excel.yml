@@ -1,1 +1,52 @@
+name: Generate Excel Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      lob_new:
+        description: "Enter First LOB (new possible)"
+        required: true
+        default: "ifp"
+      lob_old:
+        description: "Enter Second LOB"
+        required: true
+        default: "cns"
+      env_new:
+        description: "Enter First LOB Environment"
+        required: true
+        default: "test"
+      env_old:
+        description: "Enter Second LOB Environment"
+        required: true
+        default: "test"
+
+jobs:
+  process-json:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Install dependencies
+      run: npm install xlsx
+
+    - name: Process JSON files and generate Excel
+      env:
+        LOB_NEW: ${{ inputs.lob_new }}
+        LOB_OLD: ${{ inputs.lob_old }}
+        ENV_NEW: ${{ inputs.env_new }}
+        ENV_OLD: ${{ inputs.env_old }}
+      run: node process_json_to_excel.js
+
+    - name: Upload Excel Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: json-comparison-report
+        path: report.xlsx
 

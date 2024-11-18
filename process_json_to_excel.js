@@ -4,7 +4,6 @@ const https = require("https");
 
 // Excluded keys for entries
 const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
-const EXCLUDED_PARENT_KEYS = ["smartling"]; // Exclude smartling parent key entirely
 
 // Helper function to fetch JSON data from a URL
 const fetchJson = (url) => {
@@ -98,20 +97,15 @@ const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
 };
 
 // Main Excel generation function
-// Main Excel generation function
 const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   if (parentKey === "smartling") return; // Ignore smartling parent key
 
-  const workbook = xlsx.utils.book_new();
-  const rows = [];
+  console.log("Generating sheet for parent key:", parentKey);
 
-  // Fetch entries for the current parent key
   const newEntries = newJson[parentKey] || [];
   const oldEntries = oldJson[parentKey] || [];
-
-  // Ensure sheets are created even if one of the JSONs does not contain the parent key
-  const newFiltered = newEntries.length > 0 ? newEntries.map(filterKeys) : [];
-  const oldFiltered = oldEntries.length > 0 ? oldEntries.map(filterKeys) : [];
+  const newFiltered = newEntries.map(filterKeys);
+  const oldFiltered = oldEntries.map(filterKeys);
 
   // Generate consistent headers and normalized rows
   const headers = getHeaders(newFiltered, oldFiltered);
@@ -126,7 +120,11 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
   const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
+  // Create workbook
+  const workbook = xlsx.utils.book_new();
+
   // Add rows to the Excel
+  const rows = [];
   rows.push([`Parent Key: ${parentKey}`]);
   rows.push([]); // Empty row for separation
 
@@ -169,7 +167,7 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
 
   xlsx.writeFile(workbook, "report.xlsx");
-  console.log(`Excel file "report.xlsx" generated successfully.`);
+  console.log(`Sheet for "${parentKey}" created.`);
 };
 
 // Main function
@@ -182,10 +180,13 @@ const main = () => {
 
   const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
 
+  console.log("All Parent Keys:", Array.from(allParentKeys));
+
   allParentKeys.forEach((parentKey) => {
     generateExcelFromJson(newJson, oldJson, parentKey, lobNew, lobOld);
   });
+
+  console.log("Processing complete. Check for created sheets.");
 };
 
 main();
-

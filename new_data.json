@@ -91,5 +91,24 @@
       "keyword": "Behavioral Health",
       "translatedPsxKeyword": ""
     }
+  ],
+  "common-searches1": [
+    {
+      "id": "a319566c-4d44-49ef-a34d-aefad1d8f88e",
+      "key": "1",
+      "keyword": "root canal updated",
+      "category": "Family Practice",
+      "lagoon.updatedAt": "2024-03-21T17:46:52.139Z",
+      "lagoon.updatedBy": "mmelloy",
+      "score": "677",
+      "psxKeyword": "Flu",
+      "pesKeyword": "02-068-035, 52-526-033-068-035, 52-526-050-068-035",
+      "searchType": "Speciality",
+      "icon": "syringe",
+      "rollupCodeFlag": false,
+      "coverageType": "M",
+      "enableMemberRelevancy": "",
+      "translatedPsxKeyword": ""
+    }
   ]
 }

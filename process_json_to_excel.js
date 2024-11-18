@@ -4,6 +4,7 @@ const https = require("https");
 
 // Excluded keys for entries
 const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
+const EXCLUDED_PARENT_KEYS = ["smartling"]; // Exclude smartling parent key entirely
 
 // Helper function to fetch JSON data from a URL
 const fetchJson = (url) => {
@@ -98,7 +99,7 @@ const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
 
 // Main Excel generation function
 const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
-  if (parentKey === "smartling") return; // Ignore smartling parent key
+  if (EXCLUDED_PARENT_KEYS.includes(parentKey)) return; // Ignore excluded parent keys
 
   const workbook = xlsx.utils.book_new();
   const rows = [];

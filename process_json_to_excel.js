@@ -97,7 +97,7 @@ const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
 };
 
 // Main Excel generation function
-const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
+const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
   if (parentKey === "smartling") return; // Ignore smartling parent key
 
   console.log("Generating sheet for parent key:", parentKey);
@@ -120,8 +120,7 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
   const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
-  // Create workbook
-  const workbook = xlsx.utils.book_new();
+  
 
   // Add rows to the Excel
   const rows = [];
@@ -166,7 +165,7 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
   const worksheet = xlsx.utils.aoa_to_sheet(rows);
   xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
 
-  xlsx.writeFile(workbook, "report.xlsx");
+ 
   console.log(`Sheet for "${parentKey}" created.`);
 };
 
@@ -178,14 +177,18 @@ const main = () => {
   const lobNew = process.env.LOB_NEW || "ifa";
   const lobOld = process.env.LOB_OLD || "cns";
 
+  // Create workbook
+  const workbook = xlsx.utils.book_new();
+  
   const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
 
   console.log("All Parent Keys:", Array.from(allParentKeys));
 
   allParentKeys.forEach((parentKey) => {
-    generateExcelFromJson(newJson, oldJson, parentKey, lobNew, lobOld);
+    generateExcelFromJson(workbook, newJson, oldJson, parentKey, lobNew, lobOld);
   });
 
+  xlsx.writeFile(workbook, "report.xlsx");
   console.log("Processing complete. Check for created sheets.");
 };
 

@@ -88,5 +88,23 @@
       "keyword": "Behavioral Health",
       "translatedPsxKeyword": ""
     }
+  ],
+  "common-searches2": [
+    {
+      "id": "9262a664-eee4-476d-a67b-a989d3e347d5",
+      "key": "3",
+      "keyword": "joint pain",
+      "category": "Medical Specialists",
+      "lagoon.updatedAt": "2023-10-19T16:22:08.254Z",
+      "lagoon.updatedBy": "mmelloy",
+      "score": "65786",
+      "psxKeyword": "Dermatologist",
+      "pesKeyword": "02-012-007",
+      "searchType": "Speciality",
+      "icon": "tube",
+      "coverageType": "M",
+      "enableMemberRelevancy": "",
+      "translatedPsxKeyword": ""
+    }
   ]
 }

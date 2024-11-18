@@ -164,7 +164,7 @@ const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
 
   // Create worksheet and write to the workbook
   const worksheet = xlsx.utils.aoa_to_sheet(rows);
-  xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey)*);
+  xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
 
   xlsx.writeFile(workbook, "report.xlsx");
   console.log(`Sheet for "${parentKey}" created.`);

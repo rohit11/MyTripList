@@ -6,7 +6,8 @@ const https = require("https");
 const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
 
 // Helper function to fetch JSON data from a URL
-const fetchJson = (url) => {
+const fetchJson = (lob, env, file) => {
+  const url = `https://example.com/${lob}/${env}/${file}`;
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
       let data = "";
@@ -171,6 +172,14 @@ const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lo
 
 // Main function
 const main = () => {
+  const lobNew = process.env.LOB_NEW;
+  const lobOld = process.env.LOB_OLD;
+  const envNew = process.env.ENV_NEW;
+  const envOld = process.env.ENV_OLD;
+
+  //const newJson = await fetchJson(lobNew, envNew, "new_data.json");
+  //const oldJson = await fetchJson(lobOld, envOld, "old_data.json");
+  
   const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
   const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
 

@@ -4,21 +4,43 @@ on:
   workflow_dispatch:
     inputs:
       lob_new:
-        description: "Enter First LOB (new possible)"
+        description: "LOB for New JSON"
         required: true
-        default: "ifp"
+        type: choice
+        options:
+          - ifp
+          - cns
+          - mnr
+          - eni
+        default: ifp
       lob_old:
-        description: "Enter Second LOB"
+        description: "LOB for Old JSON"
         required: true
-        default: "cns"
+        type: choice
+        options:
+          - ifp
+          - cns
+          - mnr
+          - eni
+        default: cns
       env_new:
-        description: "Enter First LOB Environment"
+        description: "Environment for New JSON"
         required: true
-        default: "test"
+        type: choice
+        options:
+          - test
+          - stage
+          - prod
+        default: test
       env_old:
-        description: "Enter Second LOB Environment"
+        description: "Environment for Old JSON"
         required: true
-        default: "test"
+        type: choice
+        options:
+          - test
+          - stage
+          - prod
+        default: stage
 
 jobs:
   process-json:
@@ -49,4 +71,3 @@ jobs:
       with:
         name: json-comparison-report
         path: report.xlsx
-

@@ -183,8 +183,6 @@ const main = () => {
   const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
   const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
 
-  const lobNew = process.env.LOB_NEW || "ifa";
-  const lobOld = process.env.LOB_OLD || "cns";
 
   // Create workbook
   const workbook = xlsx.utils.book_new();

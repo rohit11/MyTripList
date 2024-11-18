@@ -1,51 +1,185 @@
-name: Generate Excel Report
+const fs = require("fs");
+const xlsx = require("xlsx");
+const https = require("https");
 
-on:
-  workflow_dispatch:
-    inputs:
-      lob_new:
-        description: "LOB for New JSON"
-        required: true
-        default: "ifa"
-      lob_old:
-        description: "LOB for Old JSON"
-        required: true
-        default: "cns"
-      env_new:
-        description: "Environment for New JSON"
-        required: true
-        default: "default-new-env"
-      env_old:
-        description: "Environment for Old JSON"
-        required: true
-        default: "default-old-env"
+// Excluded keys for entries
+const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
 
-jobs:
-  process-json:
-    runs-on: ubuntu-latest
+// Helper function to fetch JSON data from a URL
+const fetchJson = (url) => {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => resolve(JSON.parse(data)));
+      res.on("error", (err) => reject(err));
+    });
+  });
+};
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+// Helper function to remove excluded keys from JSON entries
+const filterKeys = (entry) => {
+  const filteredEntry = { ...entry };
+  EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
+  return filteredEntry;
+};
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16
+// Generate consistent headers from two datasets
+const getHeaders = (data1, data2) => {
+  const allKeys = new Set();
+  data1.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+  data2.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+  return Array.from(allKeys);
+};
 
-    - name: Install dependencies
-      run: npm install xlsx
+// Normalize rows to match headers and handle missing keys
+const normalizeRows = (data, headers) => {
+  return data.map((entry) => {
+    const row = {};
+    headers.forEach((key) => {
+      let value = entry[key];
+      if (typeof value === "boolean") {
+        value = value.toString(); // Convert true/false to lowercase strings
+      }
+      row[key] = value || null; // Assign `null` if the key is missing
+    });
+    return row;
+  });
+};
 
-    - name: Process JSON files and generate Excel
-      env:
-        LOB_NEW: ${{ inputs.lob_new }}
-        LOB_OLD: ${{ inputs.lob_old }}
-        ENV_NEW: ${{ inputs.env_new }}
-        ENV_OLD: ${{ inputs.env_old }}
-      run: node process_json_to_excel.js
+// Helper function to generate unique sheet names
+const generateSheetName = (() => {
+  const usedNames = new Set();
+  return (name) => {
+    const baseName = name.slice(0, 31); // Limit name to 31 characters
+    let uniqueName = baseName;
+    let counter = 1;
+    while (usedNames.has(uniqueName)) {
+      uniqueName = `${baseName.slice(0, 31 - counter.toString().length)}${counter}`;
+      counter++;
+    }
+    usedNames.add(uniqueName);
+    return uniqueName;
+  };
+})();
 
-    - name: Upload Excel Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: json-comparison-report
-        path: report.xlsx
+// Compare two entries field by field to determine equality
+const areEntriesEqual = (entry1, entry2) => {
+  const filteredEntry1 = filterKeys(entry1);
+  const filteredEntry2 = filterKeys(entry2);
+
+  const allKeys = new Set([...Object.keys(filteredEntry1), ...Object.keys(filteredEntry2)]);
+
+  return Array.from(allKeys).every((key) => filteredEntry1[key] === filteredEntry2[key]);
+};
+
+// Find similar entries by comparing field by field
+const findSimilarEntries = (newData, oldData) => {
+  return newData.filter((entry) => {
+    const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+    return matchingOldEntry && areEntriesEqual(entry, matchingOldEntry);
+  });
+};
+
+// Find entries with differences
+const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
+  const differentEntries = [];
+
+  newData.forEach((entry) => {
+    const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+    if (matchingOldEntry && !areEntriesEqual(entry, matchingOldEntry)) {
+      differentEntries.push({ source: `LOB: ${lobNew}`, ...entry });
+      differentEntries.push({ source: `LOB: ${lobOld}`, ...matchingOldEntry });
+    }
+  });
+
+  return differentEntries;
+};
+
+// Main Excel generation function
+const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
+  if (parentKey === "smartling") return; // Ignore smartling parent key
+
+  const workbook = xlsx.utils.book_new();
+  const rows = [];
+
+  const newEntries = newJson[parentKey] || [];
+  const oldEntries = oldJson[parentKey] || [];
+  const newFiltered = newEntries.map(filterKeys);
+  const oldFiltered = oldEntries.map(filterKeys);
+
+  // Generate consistent headers and normalized rows
+  const headers = getHeaders(newFiltered, oldFiltered);
+  const normalizedNew = normalizeRows(newFiltered, headers);
+  const normalizedOld = normalizeRows(oldFiltered, headers);
+
+  // Generate comparison tables
+  const newEntriesNew = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
+  const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
+
+  // Add rows to the Excel
+  rows.push([`Parent Key: ${parentKey}`]);
+  rows.push([]); // Empty row for separation
+
+  const addTable = (tableName, data, headers, isDifferentEntries = false) => {
+    if (data.length > 0) {
+      rows.push([tableName]); // Add table name as the first row
+      rows.push(headers); // Add headers
+
+      if (isDifferentEntries) {
+        let previousSource = null;
+        data.forEach((entry) => {
+          if (entry.source !== previousSource) {
+            rows.push([`Source: ${entry.source}`]); // Add source as a row above
+            previousSource = entry.source;
+          }
+          const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+          rows.push(row); // Add the data row
+        });
+      } else {
+        data.forEach((entry) => {
+          const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+          rows.push(row); // Add the data row
+        });
+      }
+
+      rows.push([]); // Empty row for separation
+    }
+  };
+
+  // Add all tables
+  addTable(`New Entries (${lobNew} -> ${lobOld})`, newEntriesNew, headers);
+  addTable(`New Entries (${lobOld} -> ${lobNew})`, newEntriesOld, headers);
+  addTable(`Not Found in ${lobNew}`, notFoundInNew, headers);
+  addTable(`Not Found in ${lobOld}`, notFoundInOld, headers);
+  addTable(`Similar Entries`, similarEntries, headers);
+  addTable(`Different Entries`, differentEntries, headers, true);
+
+  // Create worksheet and write to the workbook
+  const worksheet = xlsx.utils.aoa_to_sheet(rows);
+  xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
+
+  xlsx.writeFile(workbook, "report.xlsx");
+  console.log(`Excel file "report.xlsx" generated successfully.`);
+};
+
+// Main function
+const main = () => {
+  const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
+  const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
+
+  const lobNew = process.env.LOB_NEW || "ifa";
+  const lobOld = process.env.LOB_OLD || "cns";
+
+  const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
+
+  allParentKeys.forEach((parentKey) => {
+    generateExcelFromJson(newJson, oldJson, parentKey, lobNew, lobOld);
+  });
+};
+
+main();

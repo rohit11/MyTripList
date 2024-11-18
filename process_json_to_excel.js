@@ -47,6 +47,22 @@ const normalizeRows = (data, headers) => {
   });
 };
 
+// Helper function to generate unique sheet names
+const generateSheetName = (() => {
+  const usedNames = new Set();
+  return (name) => {
+    const baseName = name.slice(0, 31); // Limit name to 31 characters
+    let uniqueName = baseName;
+    let counter = 1;
+    while (usedNames.has(uniqueName)) {
+      uniqueName = `${baseName.slice(0, 31 - counter.toString().length)}${counter}`;
+      counter++;
+    }
+    usedNames.add(uniqueName);
+    return uniqueName;
+  };
+})();
+
 // Compare two entries field by field to determine equality
 const areEntriesEqual = (entry1, entry2) => {
   const filteredEntry1 = filterKeys(entry1);
@@ -81,79 +97,74 @@ const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
 };
 
 // Main Excel generation function
-const generateExcelFromJson = (newJson, oldJson, lobNew, lobOld) => {
+const generateExcelFromJson = (newJson, oldJson, parentKey, lobNew, lobOld) => {
+  if (parentKey === "smartling") return; // Ignore smartling parent key
+
   const workbook = xlsx.utils.book_new();
+  const rows = [];
 
-  // Get all unique parent keys from both JSONs
-  const parentKeys = [...new Set([...Object.keys(newJson), ...Object.keys(oldJson)])];
+  const newEntries = newJson[parentKey] || [];
+  const oldEntries = oldJson[parentKey] || [];
+  const newFiltered = newEntries.map(filterKeys);
+  const oldFiltered = oldEntries.map(filterKeys);
 
-  // Process each parent key
-  parentKeys.forEach((parentKey) => {
-    const rows = [];
-    const newEntries = newJson[parentKey] || [];
-    const oldEntries = oldJson[parentKey] || [];
-    const newFiltered = newEntries.map(filterKeys);
-    const oldFiltered = oldEntries.map(filterKeys);
+  // Generate consistent headers and normalized rows
+  const headers = getHeaders(newFiltered, oldFiltered);
+  const normalizedNew = normalizeRows(newFiltered, headers);
+  const normalizedOld = normalizeRows(oldFiltered, headers);
 
-    // Generate consistent headers and normalized rows
-    const headers = getHeaders(newFiltered, oldFiltered);
-    const normalizedNew = normalizeRows(newFiltered, headers);
-    const normalizedOld = normalizeRows(oldFiltered, headers);
+  // Generate comparison tables
+  const newEntriesNew = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+  const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+  const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
+  const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
-    // Generate comparison tables
-    const newEntriesNew = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
-    const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
-    const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
-    const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
-    const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
-    const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
+  // Add rows to the Excel
+  rows.push([`Parent Key: ${parentKey}`]);
+  rows.push([]); // Empty row for separation
 
-    // Add rows to the Excel
-    rows.push([`Parent Key: ${parentKey}`]);
-    rows.push([]); // Empty row for separation
+  const addTable = (tableName, data, headers, isDifferentEntries = false) => {
+    if (data.length > 0) {
+      rows.push([tableName]); // Add table name as the first row
+      rows.push(headers); // Add headers
 
-    const addTable = (tableName, data, headers, isDifferentEntries = false) => {
-      if (data.length > 0) {
-        rows.push([tableName]); // Add table name as the first row
-        rows.push(headers); // Add headers
-
-        if (isDifferentEntries) {
-          let previousSource = null;
-          data.forEach((entry) => {
-            if (entry.source !== previousSource) {
-              rows.push([`Source: ${entry.source}`]); // Add source as a row above
-              previousSource = entry.source;
-            }
-            const row = headers.map((key) => entry[key] || null); // Map entry values to headers
-            rows.push(row); // Add the data row
-          });
-        } else {
-          data.forEach((entry) => {
-            const row = headers.map((key) => entry[key] || null); // Map entry values to headers
-            rows.push(row); // Add the data row
-          });
-        }
-
-        rows.push([]); // Empty row for separation
+      if (isDifferentEntries) {
+        let previousSource = null;
+        data.forEach((entry) => {
+          if (entry.source !== previousSource) {
+            rows.push([`Source: ${entry.source}`]); // Add source as a row above
+            previousSource = entry.source;
+          }
+          const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+          rows.push(row); // Add the data row
+        });
+      } else {
+        data.forEach((entry) => {
+          const row = headers.map((key) => entry[key] || null); // Map entry values to headers
+          rows.push(row); // Add the data row
+        });
       }
-    };
 
-    // Add all tables
-    addTable(`New Entries (${lobNew} -> ${lobOld})`, newEntriesNew, headers);
-    addTable(`New Entries (${lobOld} -> ${lobNew})`, newEntriesOld, headers);
-    addTable(`Not Found in ${lobNew}`, notFoundInNew, headers);
-    addTable(`Not Found in ${lobOld}`, notFoundInOld, headers);
-    addTable(`Similar Entries`, similarEntries, headers);
-    addTable(`Different Entries`, differentEntries, headers, true);
+      rows.push([]); // Empty row for separation
+    }
+  };
 
-    // Create worksheet and write to the workbook
-    const worksheet = xlsx.utils.aoa_to_sheet(rows);
-    xlsx.utils.book_append_sheet(workbook, worksheet, parentKey.slice(0, 28));
-  });
+  // Add all tables
+  addTable(`New Entries (${lobNew} -> ${lobOld})`, newEntriesNew, headers);
+  addTable(`New Entries (${lobOld} -> ${lobNew})`, newEntriesOld, headers);
+  addTable(`Not Found in ${lobNew}`, notFoundInNew, headers);
+  addTable(`Not Found in ${lobOld}`, notFoundInOld, headers);
+  addTable(`Similar Entries`, similarEntries, headers);
+  addTable(`Different Entries`, differentEntries, headers, true);
 
-  // Write the Excel file
+  // Create worksheet and write to the workbook
+  const worksheet = xlsx.utils.aoa_to_sheet(rows);
+  xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
+
   xlsx.writeFile(workbook, "report.xlsx");
-  console.log("Excel file 'report.xlsx' generated successfully.");
+  console.log(`Excel file "report.xlsx" generated successfully.`);
 };
 
 // Main function
@@ -164,7 +175,11 @@ const main = () => {
   const lobNew = process.env.LOB_NEW || "ifa";
   const lobOld = process.env.LOB_OLD || "cns";
 
-  generateExcelFromJson(newJson, oldJson, lobNew, lobOld);
+  const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
+
+  allParentKeys.forEach((parentKey) => {
+    generateExcelFromJson(newJson, oldJson, parentKey, lobNew, lobOld);
+  });
 };
 
 main();

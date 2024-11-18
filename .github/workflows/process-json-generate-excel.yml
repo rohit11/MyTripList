@@ -59,12 +59,176 @@ jobs:
       run: npm install xlsx
 
     - name: Process JSON files and generate Excel
-      env:
-        LOB_NEW: ${{ inputs.lob_new }}
-        LOB_OLD: ${{ inputs.lob_old }}
-        ENV_NEW: ${{ inputs.env_new }}
-        ENV_OLD: ${{ inputs.env_old }}
-      run: node process_json_to_excel.js
+      run: |
+        const fs = require("fs");
+        const xlsx = require("xlsx");
+        const https = require("https");
+
+        const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
+
+        const fetchJson = (lob, env, file) => {
+          const url = "https://example.com/" + lob + "/" + env + "/" + file;
+          return new Promise((resolve, reject) => {
+            https.get(url, (res) => {
+              let data = "";
+              res.on("data", (chunk) => (data += chunk));
+              res.on("end", () => resolve(JSON.parse(data)));
+              res.on("error", (err) => reject(err));
+            });
+          });
+        };
+
+        const filterKeys = (entry) => {
+          const filteredEntry = { ...entry };
+          EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
+          return filteredEntry;
+        };
+
+        const getHeaders = (data1, data2) => {
+          const allKeys = new Set();
+          data1.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+          data2.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
+          return Array.from(allKeys);
+        };
+
+        const normalizeRows = (data, headers) => {
+          return data.map((entry) => {
+            const row = {};
+            headers.forEach((key) => {
+              let value = entry[key];
+              if (typeof value === "boolean") {
+                value = value.toString();
+              }
+              row[key] = value || null;
+            });
+            return row;
+          });
+        };
+
+        const generateSheetName = (() => {
+          const usedNames = new Set();
+          return (name) => {
+            const baseName = name.slice(0, 31);
+            let uniqueName = baseName;
+            let counter = 1;
+            while (usedNames.has(uniqueName)) {
+              uniqueName = baseName.slice(0, 31 - counter.toString().length) + counter;
+              counter++;
+            }
+            usedNames.add(uniqueName);
+            return uniqueName;
+          };
+        })();
+
+        const areEntriesEqual = (entry1, entry2) => {
+          const filteredEntry1 = filterKeys(entry1);
+          const filteredEntry2 = filterKeys(entry2);
+
+          const allKeys = new Set([...Object.keys(filteredEntry1), ...Object.keys(filteredEntry2)]);
+
+          return Array.from(allKeys).every((key) => filteredEntry1[key] === filteredEntry2[key]);
+        };
+
+        const findSimilarEntries = (newData, oldData) => {
+          return newData.filter((entry) => {
+            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+            return matchingOldEntry && areEntriesEqual(entry, matchingOldEntry);
+          });
+        };
+
+        const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
+          const differentEntries = [];
+
+          newData.forEach((entry) => {
+            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+            if (matchingOldEntry && !areEntriesEqual(entry, matchingOldEntry)) {
+              differentEntries.push({ source: "LOB: " + lobNew, ...entry });
+              differentEntries.push({ source: "LOB: " + lobOld, ...matchingOldEntry });
+            }
+          });
+
+          return differentEntries;
+        };
+
+        const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
+          if (parentKey === "smartling") return;
+
+          console.log("Generating sheet for parent key:", parentKey);
+
+          const newEntries = newJson[parentKey] || [];
+          const oldEntries = oldJson[parentKey] || [];
+          const newFiltered = newEntries.map(filterKeys);
+          const oldFiltered = oldEntries.map(filterKeys);
+
+          const headers = getHeaders(newFiltered, oldFiltered);
+          const normalizedNew = normalizeRows(newFiltered, headers);
+          const normalizedOld = normalizeRows(oldFiltered, headers);
+
+          const newEntriesNew = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+          const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+          const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
+          const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
+          const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
+          const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
+
+          const rows = [];
+          rows.push(["Parent Key: " + parentKey]);
+          rows.push([]);
+
+          const addTable = (tableName, data, headers, isDifferentEntries = false) => {
+            if (data.length > 0) {
+              rows.push([tableName]);
+              rows.push(headers);
+
+              if (isDifferentEntries) {
+                let previousSource = null;
+                data.forEach((entry) => {
+                  if (entry.source !== previousSource) {
+                    rows.push(["Source: " + entry.source]);
+                    previousSource = entry.source;
+                  }
+                  const row = headers.map((key) => entry[key] || null);
+                  rows.push(row);
+                });
+              } else {
+                data.forEach((entry) => {
+                  const row = headers.map((key) => entry[key] || null);
+                  rows.push(row);
+                });
+              }
+
+              rows.push([]);
+            }
+          };
+
+          addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
+          addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
+          addTable("Not Found in " + lobNew, notFoundInNew, headers);
+          addTable("Not Found in " + lobOld, notFoundInOld, headers);
+          addTable("Similar Entries", similarEntries, headers);
+          addTable("Different Entries", differentEntries, headers, true);
+
+          const worksheet = xlsx.utils.aoa_to_sheet(rows);
+          xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
+        };
+
+        const lobNew = "${{ inputs.lob_new }}";
+        const lobOld = "${{ inputs.lob_old }}";
+        const envNew = "${{ inputs.env_new }}";
+        const envOld = "${{ inputs.env_old }}";
+
+        const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
+        const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
+
+        const workbook = xlsx.utils.book_new();
+        const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
+
+        allParentKeys.forEach((parentKey) => {
+          generateExcelFromJson(workbook, newJson, oldJson, parentKey, lobNew, lobOld);
+        });
+
+        xlsx.writeFile(workbook, "report.xlsx");
+        console.log("Processing complete. Check for created sheets.");
 
     - name: Upload Excel Report
       uses: actions/upload-artifact@v4

@@ -155,7 +155,6 @@ jobs:
         const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;
 
-          const worksheet = xlsx.utils.aoa_to_sheet(rows);
 
           console.log("Generating sheet for parent key:", parentKey);
 
@@ -214,12 +213,12 @@ jobs:
                 rows.push([]); // Blank row for spacing
             
                 // Apply styles after adding rows
-                applyStylesToRows(titleRowIndex, headerRowIndex, rows.length - 1);
+                applyStylesToRows(worksheet, titleRowIndex, headerRowIndex, rows.length - 1);
               }
             };
             
             // Function to apply styles to rows
-        const applyStylesToRows = (titleRowIndex, headerRowIndex, lastRowIndex) => {
+        const applyStylesToRows = (worksheet, titleRowIndex, headerRowIndex, lastRowIndex) => {
               const range = xlsx.utils.decode_range(worksheet['!ref']);
               for (let R = titleRowIndex; R <= lastRowIndex; R++) {
                 for (let C = range.s.c; C <= range.e.c; C++) {
@@ -252,13 +251,13 @@ jobs:
 
 
 
+          const worksheet = xlsx.utils.aoa_to_sheet(rows);
           addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
           addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
           addTable("Not Found in " + lobNew, notFoundInNew, headers);
           addTable("Not Found in " + lobOld, notFoundInOld, headers);
           addTable("Similar Entries", similarEntries, headers);
           addTable("Different Entries", differentEntries, headers, true);
-
           xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 

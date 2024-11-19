@@ -79,6 +79,12 @@ jobs:
           });
         };
 
+        const filterKeys = (entry) => {
+          const filteredEntry = { ...entry };
+          EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
+          return filteredEntry;
+        };
+        
         const getHeaders = (data1, data2) => {
           const allKeys = new Set();
           data1.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));

@@ -64,7 +64,6 @@ jobs:
         const fs = require("fs");
         const xlsx = require("xlsx");
         const https = require("https");
-        const workbook = xlsx.utils.book_new();
 
         const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
 
@@ -155,7 +154,6 @@ jobs:
         const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;
 
-
           console.log("Generating sheet for parent key:", parentKey);
 
           const newEntries = newJson[parentKey] || [];
@@ -179,27 +177,20 @@ jobs:
           rows.push([]);
 
           const addTable = (tableName, data, headers, isDifferentEntries = false) => {
-              if (data.length > 0) {
-                // Add table title with styling
-                rows.push([tableName]);
-                const titleRowIndex = rows.length - 1; // Get the index of the title row for styling later
-            
-                // Add headers with styling
-                rows.push(headers);
-                const headerRowIndex = rows.length - 1; // Get the index of the header row for styling later
-            
-                // Add data rows
-                let previousSource = null;
-                data.forEach((entry) => {
-                  if (isDifferentEntries) {
-                    // Add source row if the source changes
-                    if (entry.source !== previousSource) {
-                      rows.push(["Source: " + entry.source]);
-                      const sourceRowIndex = rows.length - 1; // Get the index of the source row for styling later
-                      previousSource = entry.source;
-                    }
+            if (data.length > 0) {
+              rows.push([tableName]); // Table name as header
+              rows.push(headers); // Add headers
+          
+              // Add rows
+              let previousSource = null;
+              data.forEach((entry) => {
+                if (isDifferentEntries) {
+                  // Add source row if the source changes
+                  if (entry.source !== previousSource) {
+                    rows.push(["Source: " + entry.source]);
+                    previousSource = entry.source;
                   }
-                  // Add the actual data row
+                  // Add the row of actual data
                   const row = headers.map((key) => {
                     let value = entry[key];
                     if (typeof value === "boolean") {
@@ -208,56 +199,33 @@ jobs:
                     return value || null;
                   });
                   rows.push(row);
-                });
-            
-                rows.push([]); // Blank row for spacing
-            
-                // Apply styles after adding rows
-                applyStylesToRows(worksheet, titleRowIndex, headerRowIndex, rows.length - 1);
-              }
-            };
-            
-            // Function to apply styles to rows
-        const applyStylesToRows = (worksheet, titleRowIndex, headerRowIndex, lastRowIndex) => {
-              const range = xlsx.utils.decode_range(worksheet['!ref']);
-              for (let R = titleRowIndex; R <= lastRowIndex; R++) {
-                for (let C = range.s.c; C <= range.e.c; C++) {
-                  const cellAddress = xlsx.utils.encode_cell({ r: R, c: C });
-                  if (!worksheet[cellAddress]) continue;
-            
-                  const cell = worksheet[cellAddress];
-                  if (R === titleRowIndex) {
-                    // Title row (table name)
-                    cell.s = { fill: { fgColor: { rgb: "FFA500" } }, font: { bold: true } }; // Orange background
-                  } else if (R === headerRowIndex) {
-                    // Header row
-                    cell.s = { fill: { fgColor: { rgb: "FFFF00" } }, font: { bold: true } }; // Yellow background
-                  } else if (rows[R] && rows[R][0]?.startsWith("Source:")) {
-                    // Source rows
-                    cell.s = { fill: { fgColor: { rgb: "ADD8E6" } } }; // Light blue background
-                  } else if (rows[R] && rows[R][0]?.includes("New Entries")) {
-                    // New Entries rows
-                    cell.s = { fill: { fgColor: { rgb: "90EE90" } } }; // Light green background
-                  } else if (rows[R] && rows[R][0]?.includes("Not Found")) {
-                    // Not Found rows
-                    cell.s = { fill: { fgColor: { rgb: "FFB6C1" } } }; // Pink background
-                  } else if (rows[R] && rows[R][0]?.includes("Different Entries")) {
-                    // Different Entries rows
-                    cell.s = { fill: { fgColor: { rgb: "FFA500" } } }; // Orange background
-                  }
+                } else {
+                  // Add rows without source handling
+                  const row = headers.map((key) => {
+                    let value = entry[key];
+                    if (typeof value === "boolean") {
+                      value = value.toString(); // Convert boolean to "true"/"false"
+                    }
+                    return value || null;
+                  });
+                  rows.push(row);
                 }
-              }
-            };
+              });
+          
+              rows.push([]); // Blank row for spacing
+            }
+          };
 
 
+          addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
+          addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
+          addTable("Not Found in " + lobNew, notFoundInNew, headers);
+          addTable("Not Found in " + lobOld, notFoundInOld, headers);
+          addTable("Similar Entries", similarEntries, headers);
+          addTable("Different Entries", differentEntries, headers, true);
 
           const worksheet = xlsx.utils.aoa_to_sheet(rows);
-          addTable(worksheet, "New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
-          addTable(worksheet, "New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
-          addTable(worksheet, "Not Found in " + lobNew, notFoundInNew, headers);
-          addTable(worksheet, "Not Found in " + lobOld, notFoundInOld, headers);
-          addTable(worksheet, "Similar Entries", similarEntries, headers);
-          addTable(worksheet, "Different Entries", differentEntries, headers, true);
+  
           xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 
@@ -269,6 +237,7 @@ jobs:
         const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
         const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
 
+        const workbook = xlsx.utils.book_new();
         const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
 
         allParentKeys.forEach((parentKey) => {

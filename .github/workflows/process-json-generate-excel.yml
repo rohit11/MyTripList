@@ -169,8 +169,8 @@ jobs:
           const newEntriesOld = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
           const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
           const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
-          const similarEntries = findSimilarEntries(newFiltered, oldFiltered);
-          const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
+          const similarEntries = normalizeRows(findSimilarEntries(newFiltered, oldFiltered), headers);
+          const differentEntries = normalizeRows(findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld), headers);
 
           const rows = [];
           rows.push(["Parent Key: " + parentKey]);

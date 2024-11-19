@@ -252,12 +252,12 @@ jobs:
 
 
           const worksheet = xlsx.utils.aoa_to_sheet(rows);
-          addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
-          addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
-          addTable("Not Found in " + lobNew, notFoundInNew, headers);
-          addTable("Not Found in " + lobOld, notFoundInOld, headers);
-          addTable("Similar Entries", similarEntries, headers);
-          addTable("Different Entries", differentEntries, headers, true);
+          addTable(worksheet, "New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
+          addTable(worksheet, "New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
+          addTable(worksheet, "Not Found in " + lobNew, notFoundInNew, headers);
+          addTable(worksheet, "Not Found in " + lobOld, notFoundInOld, headers);
+          addTable(worksheet, "Similar Entries", similarEntries, headers);
+          addTable(worksheet, "Different Entries", differentEntries, headers, true);
           xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 

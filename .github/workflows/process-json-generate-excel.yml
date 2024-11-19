@@ -226,49 +226,7 @@ jobs:
 
           const worksheet = xlsx.utils.aoa_to_sheet(rows);
 
-              // Apply styles
-              const range = xlsx.utils.decode_range(worksheet['!ref']);
-              for (let R = range.s.r; R <= range.e.r; R++) {
-                for (let C = range.s.c; C <= range.e.c; C++) {
-                  const cellAddress = xlsx.utils.encode_cell({ r: R, c: C });
-                  if (!worksheet[cellAddress]) continue;
-            
-                  const cell = worksheet[cellAddress];
-                  if (R === 0) {
-                    // Title row
-                    cell.s = {
-                      fill: { fgColor: { rgb: "FFA500" } }, // Orange background
-                      font: { bold: true }
-                    };
-                  } else if (R === 2) {
-                    // Header row
-                    cell.s = {
-                      fill: { fgColor: { rgb: "FFFF00" } }, // Yellow background
-                      font: { bold: true }
-                    };
-                  } else if (rows[R] && rows[R][0]?.startsWith("Source:")) {
-                    // Source rows
-                    cell.s = {
-                      fill: { fgColor: { rgb: "ADD8E6" } } // Light blue background
-                    };
-                  } else if (rows[R] && rows[R][0]?.includes("New Entries")) {
-                    // New Entries section
-                    cell.s = {
-                      fill: { fgColor: { rgb: "90EE90" } } // Light green background
-                    };
-                  } else if (rows[R] && rows[R][0]?.includes("Not Found")) {
-                    // Not Found section
-                    cell.s = {
-                      fill: { fgColor: { rgb: "FFB6C1" } } // Pink background
-                    };
-                  } else if (rows[R] && rows[R][0]?.includes("Different Entries")) {
-                    // Different Entries section
-                    cell.s = {
-                      fill: { fgColor: { rgb: "FFA500" } } // Orange background
-                    };
-                  }
-                }
-              }
+              
           xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 

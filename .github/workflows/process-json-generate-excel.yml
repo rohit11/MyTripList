@@ -142,12 +142,16 @@ jobs:
           return Array.from(allKeys).every((key) => filteredEntry1[key] === filteredEntry2[key]);
         };
 
-        const findSimilarEntries = (newData, oldData) => {
-          return newData.filter((entry) => {
-            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
-            return matchingOldEntry && areEntriesEqual(entry, matchingOldEntry);
-          });
-        };
+                  const findSimilarEntries = (newData, oldData) => {
+            return newData
+              .map(filterKeys) // Normalize rows for new data
+              .filter((entry) => {
+                const matchingOldEntry = oldData.find((oldEntry) => {
+                  return areEntriesEqual(filterKeys(entry), filterKeys(oldEntry)); // Normalize old entry too
+                });
+                return matchingOldEntry;
+              });
+          };
 
         const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
           const differentEntries = [];

@@ -106,6 +106,26 @@ jobs:
           });
         };
 
+        const findSimilarEntries = (newData, oldData) => {
+          return newData.filter((entry) => {
+            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+            return matchingOldEntry && areEntriesEqual(entry, matchingOldEntry);
+          });
+        };
+
+        const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
+          const differentEntries = [];
+
+          newData.forEach((entry) => {
+            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
+            if (matchingOldEntry && !areEntriesEqual(entry, matchingOldEntry)) {
+              differentEntries.push({ source: "LOB: " + lobNew, ...entry });
+              differentEntries.push({ source: "LOB: " + lobOld, ...matchingOldEntry });
+            }
+          });
+
+          return differentEntries;
+        };  
         const generateExcelFromJson = async (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;
 

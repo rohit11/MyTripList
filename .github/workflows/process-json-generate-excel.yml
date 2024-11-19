@@ -60,6 +60,7 @@ jobs:
 
     - name: Process JSON files and generate Excel
       run: |
+        cat << 'EOF' > process_json_to_excel.js
         const fs = require("fs");
         const xlsx = require("xlsx");
         const https = require("https");

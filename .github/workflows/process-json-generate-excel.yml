@@ -64,6 +64,7 @@ jobs:
         const fs = require("fs");
         const xlsx = require("xlsx");
         const https = require("https");
+        const workbook = xlsx.utils.book_new();
 
         const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
 
@@ -268,7 +269,6 @@ jobs:
         const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
         const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
 
-        const workbook = xlsx.utils.book_new();
         const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
 
         allParentKeys.forEach((parentKey) => {

@@ -154,18 +154,22 @@ jobs:
           };
 
         const findDifferentEntries = (newData, oldData, lobNew, lobOld) => {
-          const differentEntries = [];
+  const differentEntries = [];
 
-          newData.forEach((entry) => {
-            const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
-            if (matchingOldEntry && !areEntriesEqual(entry, matchingOldEntry)) {
-              differentEntries.push({ source: "LOB: " + lobNew, ...entry });
-              differentEntries.push({ source: "LOB: " + lobOld, ...matchingOldEntry });
-            }
-          });
-
-          return differentEntries;
-        };
+                newData.forEach((entry) => {
+                  const normalizedNewEntry = filterKeys(entry); // Normalize new entry
+                  const matchingOldEntry = oldData.find((oldEntry) => {
+                    return areEntriesEqual(normalizedNewEntry, filterKeys(oldEntry)); // Normalize old entry too
+                  });
+              
+                  if (matchingOldEntry && !areEntriesEqual(normalizedNewEntry, filterKeys(matchingOldEntry))) {
+                    differentEntries.push({ source: `LOB: ${lobNew}`, ...normalizedNewEntry });
+                    differentEntries.push({ source: `LOB: ${lobOld}`, ...filterKeys(matchingOldEntry) });
+                  }
+                });
+              
+                return differentEntries;
+              };
 
         const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;

@@ -80,10 +80,22 @@ jobs:
         };
 
         const filterKeys = (entry) => {
-          const filteredEntry = { ...entry };
-          EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
-          return filteredEntry;
-        };
+              const filteredEntry = { ...entry };
+              EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
+            
+              // Normalize Boolean-like string values
+              for (const key in filteredEntry) {
+                if (typeof filteredEntry[key] === "string") {
+                  if (filteredEntry[key].toUpperCase() === "TRUE") {
+                    filteredEntry[key] = true;
+                  } else if (filteredEntry[key].toUpperCase() === "FALSE") {
+                    filteredEntry[key] = false;
+                  }
+                }
+              }
+            
+              return filteredEntry;
+            };
 
         const getHeaders = (data1, data2) => {
           const allKeys = new Set();

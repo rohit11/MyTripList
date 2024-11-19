@@ -230,6 +230,8 @@ jobs:
 
         xlsx.writeFile(workbook, "report.xlsx");
         console.log("Processing complete. Check for created sheets.");
+        EOF
+        node process_json_to_excel.js
 
     - name: Upload Excel Report
       uses: actions/upload-artifact@v4

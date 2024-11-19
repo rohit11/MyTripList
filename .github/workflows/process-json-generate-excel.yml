@@ -155,6 +155,8 @@ jobs:
         const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;
 
+          const worksheet = xlsx.utils.aoa_to_sheet(rows);
+
           console.log("Generating sheet for parent key:", parentKey);
 
           const newEntries = newJson[parentKey] || [];
@@ -257,7 +259,6 @@ jobs:
           addTable("Similar Entries", similarEntries, headers);
           addTable("Different Entries", differentEntries, headers, true);
 
-          const worksheet = xlsx.utils.aoa_to_sheet(rows);
           xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 

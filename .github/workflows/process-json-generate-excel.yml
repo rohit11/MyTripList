@@ -170,7 +170,7 @@ jobs:
           const notFoundInNew = normalizedOld.filter((entry) => !newFiltered.some((newEntry) => newEntry.key === entry.key));
           const notFoundInOld = normalizedNew.filter((entry) => !oldFiltered.some((old) => old.key === entry.key));
           const similarEntries = normalizeRows(findSimilarEntries(newFiltered, oldFiltered), headers);
-          const differentEntries = normalizeRows(findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld), headers);
+          const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
           const rows = [];
           rows.push(["Parent Key: " + parentKey]);
@@ -178,29 +178,44 @@ jobs:
 
           const addTable = (tableName, data, headers, isDifferentEntries = false) => {
             if (data.length > 0) {
-              rows.push([tableName]);
-              rows.push(headers);
-
-              if (isDifferentEntries) {
-                let previousSource = null;
-                data.forEach((entry) => {
+              rows.push([tableName]); // Table name as header
+              rows.push(headers); // Add headers
+          
+              // Add rows
+              let previousSource = null;
+              data.forEach((entry) => {
+                if (isDifferentEntries) {
+                  // Add source row if the source changes
                   if (entry.source !== previousSource) {
                     rows.push(["Source: " + entry.source]);
                     previousSource = entry.source;
                   }
-                  const row = headers.map((key) => entry[key] || null);
+                  // Add the row of actual data
+                  const row = headers.map((key) => {
+                    let value = entry[key];
+                    if (typeof value === "boolean") {
+                      value = value.toString(); // Convert boolean to "true"/"false"
+                    }
+                    return value || null;
+                  });
                   rows.push(row);
-                });
-              } else {
-                data.forEach((entry) => {
-                  const row = headers.map((key) => entry[key] || null);
+                } else {
+                  // Add rows without source handling
+                  const row = headers.map((key) => {
+                    let value = entry[key];
+                    if (typeof value === "boolean") {
+                      value = value.toString(); // Convert boolean to "true"/"false"
+                    }
+                    return value || null;
+                  });
                   rows.push(row);
-                });
-              }
-
-              rows.push([]);
+                }
+              });
+          
+              rows.push([]); // Blank row for spacing
             }
           };
+
 
           addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
           addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);

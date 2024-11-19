@@ -56,13 +56,13 @@ jobs:
         node-version: 16
 
     - name: Install dependencies
-      run: npm install exceljs
+      run: npm install xlsx
 
     - name: Process JSON files and generate Excel
       run: |
         cat << 'EOF' > process_json_to_excel.js
         const fs = require("fs");
-        const ExcelJS = require("exceljs");
+        const xlsx = require("xlsx");
         const https = require("https");
 
         const EXCLUDED_KEYS = ["smartling", "lagoon.updatedBy", "lagoon.updatedAt", "id"];
@@ -84,7 +84,7 @@ jobs:
           EXCLUDED_KEYS.forEach((key) => delete filteredEntry[key]);
           return filteredEntry;
         };
-
+        
         const getHeaders = (data1, data2) => {
           const allKeys = new Set();
           data1.forEach((entry) => Object.keys(entry).forEach((key) => allKeys.add(key)));
@@ -106,6 +106,31 @@ jobs:
           });
         };
 
+        const generateSheetName = (() => {
+          const usedNames = new Set();
+          return (name) => {
+            const baseName = name.slice(0, 31);
+            let uniqueName = baseName;
+            let counter = 1;
+            while (usedNames.has(uniqueName)) {
+              uniqueName = baseName.slice(0, 31 - counter.toString().length) + counter;
+              counter++;
+            }
+            usedNames.add(uniqueName);
+            return uniqueName;
+          };
+        })();
+
+        const areEntriesEqual = (entry1, entry2) => {
+          const filteredEntry1 = filterKeys(entry1);
+          const filteredEntry2 = filterKeys(entry2);
+
+          const allKeys = new Set([...Object.keys(filteredEntry1), ...Object.keys(filteredEntry2)]);
+
+          return Array.from(allKeys).every((key) => filteredEntry1[key] === filteredEntry2[key]);
+        };
+
+                  
         const findSimilarEntries = (newData, oldData) => {
           return newData.filter((entry) => {
             const matchingOldEntry = oldData.find((oldEntry) => oldEntry.key === entry.key);
@@ -125,8 +150,8 @@ jobs:
           });
 
           return differentEntries;
-        };  
-        const generateExcelFromJson = async (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
+        }; 
+        const generateExcelFromJson = (workbook, newJson, oldJson, parentKey, lobNew, lobOld) => {
           if (parentKey === "smartling") return;
 
           console.log("Generating sheet for parent key:", parentKey);
@@ -147,57 +172,50 @@ jobs:
           const similarEntries = normalizeRows(findSimilarEntries(newFiltered, oldFiltered), headers);
           const differentEntries = findDifferentEntries(newFiltered, oldFiltered, lobNew, lobOld);
 
-          const sheet = workbook.addWorksheet(parentKey);
-
-          // Add title
-          const titleRow = sheet.addRow(["Parent Key: " +  parentKey]);
-          titleRow.eachCell((cell) => {
-            cell.font = { bold: true };
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFA500" } };
-          });
-
-          sheet.addRow([]); // Blank row for spacing
+          const rows = [];
+          rows.push(["Parent Key: " + parentKey]);
+          rows.push([]);
 
           const addTable = (tableName, data, headers, isDifferentEntries = false) => {
             if (data.length > 0) {
-              // Add table title
-              const tableTitleRow = sheet.addRow([tableName]);
-              tableTitleRow.eachCell((cell) => {
-                cell.font = { bold: true };
-                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFF00" } }; // Yellow background
-              });
-
-              // Add headers
-              const headerRow = sheet.addRow(headers);
-              headerRow.eachCell((cell) => {
-                cell.font = { bold: true };
-                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "ADD8E6" } }; // Light blue background
-              });
-
+              rows.push([tableName]); // Table name as header
+              rows.push(headers); // Add headers
+          
               // Add rows
               let previousSource = null;
               data.forEach((entry) => {
                 if (isDifferentEntries) {
+                  // Add source row if the source changes
                   if (entry.source !== previousSource) {
-                    // Add source row
-                    const sourceRow = sheet.addRow([`Source: ${entry.source}`]);
-                    sourceRow.eachCell((cell) => {
-                      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "ADD8E6" } }; // Light blue background
-                    });
+                    rows.push(["Source: " + entry.source]);
                     previousSource = entry.source;
                   }
+                  // Add the row of actual data
+                  const row = headers.map((key) => {
+                    let value = entry[key];
+                    if (typeof value === "boolean") {
+                      value = value.toString(); // Convert boolean to "true"/"false"
+                    }
+                    return value || null;
+                  });
+                  rows.push(row);
+                } else {
+                  // Add rows without source handling
+                  const row = headers.map((key) => {
+                    let value = entry[key];
+                    if (typeof value === "boolean") {
+                      value = value.toString(); // Convert boolean to "true"/"false"
+                    }
+                    return value || null;
+                  });
+                  rows.push(row);
                 }
-
-                // Add data rows
-                const dataRow = sheet.addRow(headers.map((key) => entry[key] || ""));
-                dataRow.eachCell((cell) => {
-                  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "90EE90" } }; // Light green background
-                });
               });
-
-              sheet.addRow([]); // Blank row for spacing
+          
+              rows.push([]); // Blank row for spacing
             }
           };
+
 
           addTable("New Entries (" + lobNew + " -> " + lobOld + ")", newEntriesNew, headers);
           addTable("New Entries (" + lobOld + " -> " + lobNew + ")", newEntriesOld, headers);
@@ -205,6 +223,11 @@ jobs:
           addTable("Not Found in " + lobOld, notFoundInOld, headers);
           addTable("Similar Entries", similarEntries, headers);
           addTable("Different Entries", differentEntries, headers, true);
+
+          const worksheet = xlsx.utils.aoa_to_sheet(rows);
+
+              
+          xlsx.utils.book_append_sheet(workbook, worksheet, generateSheetName(parentKey));
         };
 
         const lobNew = "${{ inputs.lob_new }}";
@@ -215,16 +238,15 @@ jobs:
         const newJson = JSON.parse(fs.readFileSync("new_data.json", "utf8"));
         const oldJson = JSON.parse(fs.readFileSync("old_data.json", "utf8"));
 
-        const workbook = new ExcelJS.Workbook();
+        const workbook = xlsx.utils.book_new();
         const allParentKeys = new Set([...Object.keys(newJson), ...Object.keys(oldJson)]);
 
-        (async () => {
-          for (const parentKey of allParentKeys) {
-            await generateExcelFromJson(workbook, newJson, oldJson, parentKey, lobNew, lobOld);
-          }
-          await workbook.xlsx.writeFile("report.xlsx");
-          console.log("Processing complete. Check for created sheets.");
-        })();
+        allParentKeys.forEach((parentKey) => {
+          generateExcelFromJson(workbook, newJson, oldJson, parentKey, lobNew, lobOld);
+        });
+
+        xlsx.writeFile(workbook, "report.xlsx");
+        console.log("Processing complete. Check for created sheets.");
         EOF
         node process_json_to_excel.js
 

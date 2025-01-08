@@ -1,20 +1,32 @@
 const fs = require('fs');
 const path = require('path');
-const glob = require('glob');
 
-// Replace this with your folder path
-const folderPath = './src'; // Change './src' to the folder you want to scan
-const filePattern = `${folderPath}/**/*.tsx`; // Adjust file extension if needed
+// Set your folder dynamically or take it as input
+const folderPath = './'; // Change to your project's root folder or leave it as './' for the current directory
 
-glob(filePattern, (err, files) => {
-    if (err) {
-        console.error('Error finding files:', err);
-        return;
-    }
-
-    const folderUsage = {};
+function getAllFiles(dirPath, arrayOfFiles = []) {
+    const files = fs.readdirSync(dirPath);
 
     files.forEach((file) => {
+        const fullPath = path.join(dirPath, file);
+        if (fs.statSync(fullPath).isDirectory()) {
+            arrayOfFiles = getAllFiles(fullPath, arrayOfFiles);
+        } else {
+            arrayOfFiles.push(fullPath);
+        }
+    });
+
+    return arrayOfFiles;
+}
+
+function extractImports() {
+    const allFiles = getAllFiles(folderPath);
+    const folderUsage = {};
+
+    allFiles.forEach((file) => {
+        // Only process text-based files (like .js, .ts, etc.)
+        if (!file.match(/\.(js|ts|jsx|tsx)$/)) return;
+
         const content = fs.readFileSync(file, 'utf8');
 
         // Match imports like: import { X } from '@abyss/mobile/...';
@@ -73,4 +85,7 @@ glob(filePattern, (err, files) => {
 
     fs.writeFileSync('folderUsage.csv', csvContent, 'utf8');
     console.log('Folder usage details saved to folderUsage.csv');
-});
+}
+
+// Run the extraction
+extractImports();
